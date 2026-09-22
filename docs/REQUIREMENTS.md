@@ -1,40 +1,39 @@
-# Requirement-to-test matrix
+# Матрица «требование-тест»
 
-Source documents: the user-supplied AlfaGen task, ds.pdf onboarding (9 pages),
-and scoring criteria (4 pages). No source PDF is redistributed in this package.
+Исходные документы: предоставленное задание AlfaGen, ds.pdf онбординг (9 страниц)
+и критерии оценки (4 страницы). Никакой исходный PDF не распространяется в этом пакете.
 
-| Requirement | Implementation | Executable evidence |
+| Требование | Реализация | Исполняемое доказательство |
 |---|---|---|
-| All 17 types and original offsets | detection/engine.py | test_required_category_offsets (three case variants) |
-| Public names/branch addresses | contextual suppression | test_public_and_non_personal_text; real NER test |
-| Text dates, separators, reordered dates | bounded contextual rules | core category fixtures |
-| Exact layout and token restoration | transformation/masking.py | Unicode property test; exact roundtrip |
-| No recursive/foreign token expansion | one-pass scoped lookup | test_no_recursive_token_restoration; scoped tokens test |
-| Exact process JSON schema | api/app.py | test_contract_replays_and_conflict |
-| Retries and concurrent first request | content fingerprints + atomic state | service replay/concurrency tests; real Redis test |
-| Shared state across processes | RedisStore | test_real_redis_cross_instance_atomicity_expiry_and_encryption |
-| Authorized restoration, disabled consumer | per-request consumer policy | isolation and disabled-consumer tests |
-| Policy changes | stored effective policy comparison | test_policy_change_cannot_replay_old_weaker_mask |
-| State expiry and integrity | TTL/tombstones; AEAD binding | expiry and cipher tests |
-| Fail closed on unavailable Redis | fixed safe 503 | test_state_failure_fails_closed |
-| Real proxy transport behavior | LLMClient | mock HTTP wire-body inspection; real provider demo remains external |
-| New reply data protected | reply scan before restoration | test_proxy_masks_wire_data_and_restores_only_known_tokens |
-| No public default access | keys and actual peer CIDRs | allowlist/forwarded-header test |
-| Safe validation and bounded input | model validation; ASGI body bound | test_validation_size_limit_and_metrics |
-| No PII logs | fixed structured metadata | test_payloads_absent_from_logs with logging enabled |
-| CPU work outside event loop | bounded ProcessPoolExecutor | test_real_process_pool |
-| Long text/chunk edges | block processing with overlap | large lexical-token test; boundary tests |
-| Extend rules without core edits | YAML extra_rules | test_conditional_policy_and_custom_rule |
-| Modes/conditional bonus | consumer policies | policy test and demo consumers |
-| Metrics and load evidence | Prometheus; tools/load.py | metrics test; saved load JSON |
-| README and source-only ZIP | README; tools/package.py | package inspection and clean-launch procedure |
+| Все 17 типов и исходные смещения | detection/engine.py | test_required_category_offsets (три варианта регистра) |
+| Публичные имена/адреса филиалов | контекстное подавление | test_public_and_non_personal_text; реальный NER-тест |
+| Текстовые даты, разделители, переставленные даты | ограниченные контекстные правила | фикстуры основных категорий |
+| Точное layout- и токен-восстановление | transformation/masking.py | Unicode property-тест; точный roundtrip |
+| Без рекурсивного/чужого расширения токенов | однопроходный ограниченный поиск | test_no_recursive_token_restoration; тест ограниченных токенов |
+| Точная JSON-схема процесса | api/app.py | test_contract_replays_and_conflict |
+| Повторы и конкурентный первый запрос | отпечатки содержимого + атомарное состояние | сервисные тесты повторов/конкурентности; реальный Redis-тест |
+| Общее состояние между процессами | RedisStore | test_real_redis_cross_instance_atomicity_expiry_and_encryption |
+| Авторизованное восстановление, отключённый потребитель | политика потребителя на запрос | тесты изоляции и отключённого потребителя |
+| Изменения политики | сравнение сохранённой действующей политики | test_policy_change_cannot_replay_old_weaker_mask |
+| Истечение и целостность состояния | TTL/tombstone; AEAD-привязка | тесты истечения и шифра |
+| Fail-closed при недоступном Redis | фиксированный безопасный 503 | test_state_failure_fails_closed |
+| Реальное поведение прокси-транспорта | LLMClient | проверка тела мок-HTTP-провода; реальное демо провайдера остаётся внешним |
+| Новые данные ответа защищены | сканирование ответа до восстановления | test_proxy_masks_wire_data_and_restores_only_known_tokens |
+| Нет публичного доступа по умолчанию | ключи и фактические CIDR пиров | тест белого списка/пересылаемых заголовков |
+| Безопасная валидация и ограниченный ввод | валидация модели; граница тела ASGI | test_validation_size_limit_and_metrics |
+| Нет PII в журналах | фиксированные структурированные метаданные | test_payloads_absent_from_logs с включённым логированием |
+| CPU-работа вне цикла событий | ограниченный ProcessPoolExecutor | test_real_process_pool |
+| Длинный текст/границы чанков | блочная обработка с перекрытием | большой лексический токен-тест; тесты границ |
+| Расширение правил без правок ядра | YAML extra_rules | test_conditional_policy_and_custom_rule |
+| Режимы/условный бонус | политики потребителей | тест политики и демо-потребители |
+| Метрики и доказательства нагрузки | Prometheus; tools/load.py | тест метрик; сохранённый JSON нагрузки |
+| README и ZIP только с исходниками | README; tools/package.py | проверка пакета и процедура чистого запуска |
 
-## Assumptions and non-equivalences
-- Default star masks are not established official reference masks.
-- Provider protocol is assumed OpenAI-compatible until confirmed with a real call.
-- A 100000-word/lexical-token example is not a verified 100000-DeepSeek-token input.
-- Estimated TPS is characters/4, explicitly labeled as an estimate.
-- Generated 340-case development data is not independent and has repeated negatives.
-- Single Redis instance and bounded tombstones do not promise HA or indefinite replay safety.
-- Linux/Python 3.11 is the Docker target; local verification used Windows/Python 3.12.
-
+## Допущения и неэквивалентности
+- Звёздочные маски по умолчанию не являются установленными официальными эталонными масками.
+- Протокол провайдера предполагается OpenAI-совместимым до подтверждения реальным вызовом.
+- Пример на 100000 слов/лексических токенов не является проверенным вводом на 100000 токенов DeepSeek.
+- Оценённый TPS — это символы/4, явно помеченные как оценка.
+- Сгенерированные данные разработки на 340 случаев не являются независимыми и содержат повторяющиеся негативы.
+- Один экземпляр Redis и ограниченные tombstone не обещают HA или бесконечную безопасность повторов.
+- Linux/Python 3.11 — цель Docker; локальная проверка выполнялась на Windows/Python 3.12.

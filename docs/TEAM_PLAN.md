@@ -1,77 +1,83 @@
-# Two-person 48-hour execution plan
+# План выполнения на два человека за 48 часов
 
-## Objective and scoring
-Build a working CPU-only proxy and pass the exact `/process` contract. Scoring:
-detection/masking 6, restoration 3, context/variants 4, configuration 4,
-performance 4, privacy/metrics 3, extras 3, demo 3 (30 total).
-README is mandatory for configuration points. Prioritize the first 13 quality
-points, then reliable integration and measured performance. A live endpoint and
-a clean source ZIP are both mandatory. Production readiness is not required.
+## Цель и оценка
+Создать работающий CPU-only прокси и пройти точный контракт `/process`. Оценка:
+обнаружение/маскирование 6, восстановление 3, контекст/варианты 4, конфигурация 4,
+производительность 4, приватность/метрики 3, бонусы 3, демо 3 (всего 30).
+README обязателен для баллов за конфигурацию. Приоритет — первые 13 баллов за
+качество, затем надёжная интеграция и измеренная производительность. Живая
+конечная точка и чистый ZIP с исходниками обязательны. Производственная
+готовность не требуется.
 
-The original statement targets <=1s/1000 RPS; the scoring sheet prefers
-<=0.5s/1000 RPS. The checker times out at 10s, retries twice, and stops after
-five consecutive invalid requests. The exact reference-mask metric is missing.
-Never invent an equivalence between our quality report and the official score.
+В исходном задании цель — <=1с/1000 RPS; оценочный лист предпочитает
+<=0.5с/1000 RPS. Проверяющий ждёт 10 секунд, повторяет дважды и останавливается
+после пяти неверных запросов подряд. Точная метрика эталонного маска отсутствует.
+Никогда не заявляйте эквивалентность нашего отчёта о качестве официальному баллу.
 
-## Ownership and handoffs
-Participant A owns detection, contextual rules, overlap resolution, transforms,
-quality fixtures, and profiling the core. Participant B owns API/auth, shared
-state, LLM transport, deployment, metrics, load, and the private holdout.
-Use separate Git branches and model conversations. Agree on domain.py interfaces
-before parallel work. Integrate every four hours; neither participant silently
-changes shared interfaces. Each reviews the other's acceptance tests.
+## Зоны ответственности и передача работы
+Участник A отвечает за обнаружение, контекстные правила, разрешение пересечений,
+преобразования, фикстуры качества и профилирование ядра. Участник B отвечает за
+API/аутентификацию, общее состояние, LLM-транспорт, развёртывание, метрики,
+нагрузку и приватный holdout. Используйте отдельные Git-ветки и отдельные
+разговоры с моделью. Согласуйте интерфейсы domain.py до начала параллельной
+работы. Интегрируйтесь каждые четыре часа; ни один участник не меняет молча
+общие интерфейсы. Каждый проверяет приёмочные тесты другого.
 
-| Hours | Participant A | Participant B | Exit condition |
+| Часы | Участник A | Участник B | Условие выхода |
 |---|---|---|---|
-| 0-2 | Requirements and 17-type examples | CPU/RAM, LLM protocol, checker network | Unknowns recorded |
-| 2-6 | Core behavior tests | API/state tests and private dataset | Meaningful RED evidence |
-| 6-18 | Detection, context, transforms | API, encrypted state, errors | Mask/restore pair works |
-| 18-28 | Coverage and false positives | Real LLM proxy and accessible URL | Complete integration |
-| 28-36 | Long text and profiling | Load, retries, worker sizing | Measured report |
-| 36-42 | Independent evaluation | Bonuses, README, rehearsal | Scored demo ready |
-| 42-48 | Cross-review and regression | Clean launch, ZIP, availability | Submission plus buffer |
+| 0-2 | Требования и примеры по 17 типам | CPU/RAM, протокол LLM, сеть проверяющего | Зафиксированы неизвестные |
+| 2-6 | Тесты поведения ядра | Тесты API/состояния и приватный набор данных | Значимые RED-доказательства |
+| 6-18 | Обнаружение, контекст, преобразования | API, шифрованное состояние, ошибки | Работает пара маск/восстановление |
+| 18-28 | Покрытие и ложные срабатывания | Реальный LLM-прокси и доступный URL | Полная интеграция |
+| 28-36 | Длинный текст и профилирование | Нагрузка, повторы, размер воркеров | Измеренный отчёт |
+| 36-42 | Независимая оценка | Бонусы, README, репетиция | Готовое оценённое демо |
+| 42-48 | Перекрёстное ревью и регрессия | Чистый запуск, ZIP, доступность | Отправка плюс запас |
 
-## Tests-first discipline
-For every bounded task: requirement -> test -> meaningful failure -> implementation
--> relevant green checks -> refactor. Collection/import failures are environment
-problems, not successful RED evidence. Test expectations change only when the
-second participant confirms the original expectation contradicts the specification.
-Never resolve failures by skipping tests, disabling a detector, or lowering gates.
+## Дисциплина «сначала тесты»
+Для каждой ограниченной задачи: требование -> тест -> значимый сбой -> реализация
+-> релевантные зелёные проверки -> рефакторинг. Ошибки сбора/импорта — это
+проблемы окружения, а не успешные RED-доказательства. Ожидания тестов меняются
+только когда второй участник подтверждает, что исходное ожидание противоречит
+спецификации. Никогда не решайте сбои пропуском тестов, отключением детектора
+или снижением порогов.
 
-Keep the private holdout outside the implementation workspace. B authors at least
-10 examples per category using new sentence families and manually reviewed spans,
-including hard negatives. Neither the generated development corpus nor test cases
-derived from visible prompts are independent. After disclosing a failing example,
-move it into regression data and replace the unseen control example.
+Держите приватный holdout вне рабочего пространства реализации. B создаёт минимум
+10 примеров на категорию с новыми семействами предложений и вручную проверенными
+фрагментами, включая сложные негативы. Ни сгенерированный корпус разработки, ни
+тестовые случаи, выведенные из видимых промптов, не являются независимыми. После
+раскрытия провального примера перенесите его в регрессионные данные и замените
+невидимый контрольный пример.
 
-## Practical DeepSeek loop
-Load root AGENTS.md, the target folder AGENTS.md, the shared interfaces, and only
-the relevant tests. Give one bounded task from PROMPTS.md. Run commands yourself
-if the coding environment cannot execute them; paste complete error output into
-the same task. Keep the model from reading unrelated folders or dumping the whole
-repository into context. At handoff update the local Current state paragraph and
-write a five-line note: completed behavior, tests, interface changes, blockers,
-and the next concrete task.
+## Практический цикл DeepSeek
+Загрузите корневой AGENTS.md, AGENTS.md целевой папки, общие интерфейсы и только
+релевантные тесты. Дайте одну ограниченную задачу из PROMPTS.md. Запускайте
+команды сами, если среда кодирования не может их выполнить; вставляйте полный
+вывод ошибок в ту же задачу. Не давайте модели читать несвязанные папки или
+сваливать весь репозиторий в контекст. При передаче работы обновите локальный
+абзац «Текущее состояние» и напишите заметку из пяти строк: выполненное поведение,
+тесты, изменения интерфейсов, блокеры и следующая конкретная задача.
 
-## Early decisions still needed on the actual hackathon infrastructure
-- Verify the provider's API format; the supplied adapter assumes chat completions.
-- Obtain the checker source IP or a supported authentication arrangement.
-- Confirm CPU/RAM/disk, Python/Docker, and download access before selecting workers.
-- Request reference masks/scoring code; isolate any required change in the renderer.
-- Obtain the model tokenizer before claiming exact model-token volume or TPS.
+## Решения, которые ещё нужно принять по фактической инфраструктуре хакатона
+- Проверьте формат API провайдера; поставляемый адаптер предполагает chat-завершения.
+- Получите исходный IP проверяющего или поддерживаемую схему аутентификации.
+- Подтвердите CPU/RAM/диск, Python/Docker и доступ к загрузкам до выбора воркеров.
+- Запросите эталонные маски/код оценки; изолируйте любое необходимое изменение в рендерере.
+- Получите токенизатор модели до заявления о точном объёме токенов модели или TPS.
 
-## Demonstration
-Use synthetic data only. In 1-2 minutes explain consumer -> identification ->
-masking -> LLM -> reply scan -> authorized restoration. Show all types through
-5-10 prepared samples, a public/private context contrast, and a formatting variant.
-Then show a repeated request, denied restoration for the second consumer, safe
-logs, and actual metrics. Demonstrate tokens, configurable modes, and conditional
-PIN+card rules as three extras. Keep conditional protection off the real proxy.
-Answer honestly about ambiguous classification and measured throughput.
+## Демонстрация
+Используйте только синтетические данные. За 1-2 минуты объясните: потребитель ->
+обнаружение -> маскирование -> LLM -> сканирование ответа -> авторизованное
+восстановление. Покажите все типы на 5-10 подготовленных примерах, контраст
+публичного/приватного контекста и вариант форматирования. Затем покажите
+повторный запрос, запрет восстановления для второго потребителя, безопасные
+журналы и реальные метрики. Продемонстрируйте токены, настраиваемые режимы и
+условное правило PIN+карта как три бонуса. Держите условную защиту вне реального
+прокси. Честно отвечайте о неоднозначной классификации и измеренной пропускной
+способности.
 
-## Release gate
-No mandatory test failures, no skipped Redis test in the release evidence, no
-secrets in ZIP, a reproducible README launch, compatible API, completed reviewed
-holdout report, and a reachable checker URL. If an item is missing, record it as
-incomplete rather than reporting the project as fully submission-ready.
-
+## Ворота релиза
+Нет обязательных провалов тестов, нет пропущенного Redis-теста в доказательствах
+релиза, нет секретов в ZIP, воспроизводимый запуск по README, совместимый API,
+завершённый проверенный отчёт по holdout и достижимый URL проверяющего. Если
+какой-то пункт отсутствует, отметьте его как незавершённый, а не сообщайте о
+проекте как полностью готовом к отправке.

@@ -1,40 +1,43 @@
-# Architecture
+# Архитектура
 
 ```mermaid
 flowchart LR
-    C[Consumer] --> A[API and authorization]
-    A --> P[Policy snapshot]
-    P --> D[Bounded CPU process pool]
-    D --> R[Rules and local Natasha]
-    R --> M[Resolve spans and mask]
-    M <--> S[Encrypted Redis records with TTL]
-    M --> L[LLM receives typed markers]
-    L --> O[Protect newly generated data]
-    O --> U[Restore known authorized markers]
+    C[Потребитель] --> A[API и авторизация]
+    A --> P[Снимок политики]
+    P --> D[Ограниченный CPU-пул процессов]
+    D --> R[Правила и локальная Natasha]
+    R --> M[Разрешить фрагменты и маскировать]
+    M <--> S[Шифрованные записи Redis с TTL]
+    M --> L[LLM получает типизированные маркеры]
+    L --> O[Защитить вновь сгенерированные данные]
+    O --> U[Восстановить известные авторизованные маркеры]
     U --> C
-    A --> X[Process-only path: no LLM]
+    A --> X[Путь только для процесса: без LLM]
     X --> D
 ```
 
-The organizer endpoint has two directions determined by keyed fingerprints of
-request content, never by invocation count. Redis atomically chooses the winning
-record for concurrent first requests. Layout masks need exact input identity;
-typed tokens can be restored after the LLM rearranges surrounding text.
+Конечная точка организатора имеет два направления, определяемых ключевыми
+отпечатками содержимого запроса, никогда — числом вызовов. Redis атомарно
+выбирает выигрышную запись для конкурентных первых запросов. Layout-маски
+требуют точной идентичности ввода; типизированные токены можно восстановить
+после того, как LLM переставит окружающий текст.
 
-AES-GCM uses a fresh nonce per encrypted record and a scoped state key as
-associated data. State keys and content fingerprints are HMAC-derived. Full
-original text is not stored as an additional copy; the encrypted record contains
-the masked text plus the original selected fragments and policy snapshot.
+AES-GCM использует свежий nonce для каждой шифрованной записи и ограниченный
+ключ состояния как ассоциированные данные. Ключи состояния и отпечатки
+содержимого выводятся через HMAC. Полный исходный текст не хранится как
+дополнительная копия; шифрованная запись содержит замаскированный текст плюс
+исходные выбранные фрагменты и снимок политики.
 
-One API process owns one bounded worker pool. Every worker loads model weights
-once. Async HTTP/Redis I/O stays on the event loop. A timed-out CPU future retains
-its capacity slot until actual completion; overload returns 429 rather than
-growing an unbounded queue. Input size, response size, Redis memory, and worker
-capacity are bounded. Loss of a required component fails closed.
+Один процесс API владеет одним ограниченным пулом воркеров. Каждый воркер
+загружает веса модели один раз. Асинхронный HTTP/Redis I/O остаётся на цикле
+событий. Истёкший по таймауту CPU-future сохраняет свой слот ёмкости до
+фактического завершения; перегрузка возвращает 429, а не растёт в неограниченную
+очередь. Размер ввода, размер ответа, память Redis и ёмкость воркеров ограничены.
+Потеря обязательного компонента приводит к fail-closed.
 
-Mask rendering costs O(n + k log k) for n characters and k selected intervals;
-memory includes the request, output, and k replacements. Rule scanning is bounded
-per block; NER compute is measured rather than assigned a fictitious constant.
-Overlap resolution depends on candidate density and can have quadratic work in
-a pathological overlapping group. Optimize it only after a measured bottleneck.
-
+Рендеринг маска стоит O(n + k log k) для n символов и k выбранных интервалов;
+память включает запрос, вывод и k замен. Сканирование правил ограничено на блок;
+вычисления NER измеряются, а не получают вымышленную константу. Разрешение
+пересечений зависит от плотности кандидатов и может иметь квадратичную работу в
+патологической группе пересечений. Оптимизируйте его только после измеренного
+узкого места.
