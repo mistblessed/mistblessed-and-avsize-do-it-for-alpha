@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.pytest_cache/
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
+.tdd/
+*.pyc
+*.zip
+reports/local-*

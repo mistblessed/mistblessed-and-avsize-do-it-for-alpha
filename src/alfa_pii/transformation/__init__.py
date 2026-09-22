@@ -1,0 +1,2 @@
+"""Offset-preserving transformation contracts."""
+

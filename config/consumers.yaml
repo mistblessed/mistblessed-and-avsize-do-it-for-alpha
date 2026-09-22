@@ -1,0 +1,20 @@
+# Secrets are referenced by environment variable name, never stored here.
+consumers:
+  - id: benchmark
+    mode: layout_mask
+    # No key: access is exclusively restricted by BENCHMARK_CIDRS.
+  - id: demo
+    key_env: DEMO_API_KEY
+    mode: typed_tokens
+  - id: no-restore
+    key_env: NO_RESTORE_API_KEY
+    mode: typed_tokens
+    demask: false
+  - id: conditional
+    key_env: CONDITIONAL_API_KEY
+    mode: layout_mask
+    combinations:
+      PIN: [PIN, CARD]
+# Add a named "value" capture and add the new kind to the consumer's type lists.
+extra_rules: []
+

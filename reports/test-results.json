@@ -1,0 +1,9 @@
+{
+  "tests": 101,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "seconds": 5.685,
+  "real_redis": true,
+  "checked_at_utc": "2026-09-22T16:12:16.684280+00:00"
+}

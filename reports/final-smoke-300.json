@@ -1,0 +1,30 @@
+{
+  "generator": "Locust FastHttpSession/gevent; open-loop pair arrivals",
+  "host": "Windows-10-10.0.19045-SP0",
+  "python": "3.12.14",
+  "cpu_count": 12,
+  "server_hardware": "Record separately; generator may be a different machine",
+  "target_primary_rps": 300,
+  "scheduled_seconds": 15,
+  "elapsed_including_drain": 15.00508880000416,
+  "scheduled_pairs": 2250,
+  "completed_pairs": 2250,
+  "wrong_roundtrips": 0,
+  "generator_dropped_pairs": 0,
+  "status_counts": {
+    "200": 4500
+  },
+  "successful_http_rps_including_drain": 299.8982585160544,
+  "attempt_rps_including_retries": 299.8982585160544,
+  "latency_seconds": {
+    "mean": 0.006200952155523636,
+    "p50": 0.0064729000005172566,
+    "p95": 0.011619499993685167,
+    "p99": 0.03816029999870807,
+    "max": 0.1002236999993329
+  },
+  "scheduler_lag_p95_seconds": 0.00400163333688397,
+  "generator_cpu_seconds": 3.78125,
+  "long_input_every_n_pairs": 0,
+  "note": "Latencies include failures and connection wait; throughput includes drain. Lexical tokens are not verified model tokens."
+}

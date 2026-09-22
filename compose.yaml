@@ -1,0 +1,39 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Generate .env with tools/bootstrap.py}
+    command:
+      - /bin/sh
+      - -c
+      - exec redis-server --requirepass "$$REDIS_PASSWORD" --save '' --appendonly no --maxmemory 512mb --maxmemory-policy noeviction
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 2s
+      retries: 10
+    restart: unless-stopped
+    networks: [private]
+  api:
+    build: .
+    env_file: ${APP_ENV_FILE:-.env}
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - ${BIND_ADDRESS:-127.0.0.1}:${PORT:-8000}:8000
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, /app/.venv/bin/python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+    networks: [private, egress]
+networks:
+  private:
+    internal: true
+  egress: {}
+

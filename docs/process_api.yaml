@@ -1,0 +1,48 @@
+openapi: 3.0.3
+info:
+  title: AlfaGen process contract
+  version: 1.0.0
+  description: >-
+    Content-aware paired masking/restoration. New ID masks; the same ID with the
+    returned mask restores. Replays of the original return the same mask.
+    Checker network access is allowlisted; Bearer access is an additional option.
+paths:
+  /process:
+    post:
+      operationId: process
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessRequest'
+      responses:
+        '200':
+          description: Protected or restored text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessResponse'
+        '429':
+          description: Bounded capacity exceeded; retry according to Retry-After
+        '4XX':
+          description: Invalid, unauthorized, conflicting, or expired request
+        '5XX':
+          description: Protection, state, or application failure; no unsafe fallback
+components:
+  schemas:
+    ProcessRequest:
+      type: object
+      required: [payload, payload_id]
+      properties:
+        payload:
+          type: string
+        payload_id:
+          type: string
+    ProcessResponse:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+
