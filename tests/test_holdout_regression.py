@@ -111,3 +111,20 @@ def test_address_inflected_form_span():
 def test_grazhdanin_with_name_is_person():
     text = "Гражданин: Лебедев Сергей"
     assert "Лебедев Сергей" in value(text, "PERSON")
+
+
+# --- Free-text detection: realistic sentence structures without leading labels ---
+
+def test_birth_date_followed_by_goda_rozhdeniya():
+    text = "Иванов Иван Иванович, 12.01.1990 года рождения"
+    assert "12.01.1990" in value(text, "BIRTH_DATE")
+
+
+def test_issue_date_vydan_without_ot():
+    text = "Паспорт 4512 987654, выдан 15.03.2015"
+    assert "15.03.2015" in value(text, "ISSUE_DATE")
+
+
+def test_address_without_dom_prefix():
+    text = "Проживает: г. Москва, ул. Тверская, 7"
+    assert "г. Москва, ул. Тверская, 7" in value(text, "ADDRESS")

@@ -67,6 +67,7 @@ class ProcessEngine:
             mp_context=multiprocessing.get_context("spawn"), initializer=init_worker,
             initargs=(use_ner, extra_rules))
         self.capacity, self.timeout, self.pending = capacity, timeout, 0
+        self._policy_cache: dict[int, dict[str, Any]] = {}
 
     async def protect(self, text: str, policy: Consumer, mode: str,
                       trusted_tokens: tuple[str, ...] = ()) -> MaskResult:
@@ -75,7 +76,11 @@ class ProcessEngine:
         self.pending += 1
         loop = asyncio.get_running_loop()
         try:
-            future = loop.run_in_executor(self.pool, run_worker, text, policy.model_dump(), mode, trusted_tokens)
+            serialized = self._policy_cache.get(id(policy))
+            if serialized is None:
+                serialized = policy.model_dump()
+                self._policy_cache[id(policy)] = serialized
+            future = loop.run_in_executor(self.pool, run_worker, text, serialized, mode, trusted_tokens)
         except Exception as exc:
             self.pending -= 1
             raise ServiceError(503, "worker_unavailable") from exc

@@ -29,7 +29,7 @@ log = logging.getLogger("alfa_pii")
 
 
 class ProcessRequest(BaseModel):
-    model_config = ConfigDict(strict=True, extra="ignore")
+    model_config = ConfigDict(strict=True, extra="forbid")
     payload: str
     payload_id: str
 

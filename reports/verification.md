@@ -94,6 +94,25 @@ use the provider's tokenizer and does not establish the SLA for large texts.
 The local load corpus uses the authenticated demo consumer's typed-token mode;
 repeat grading-profile layout-mask measurements on the actual checker deployment.
 
+### NER optimization (2026-09-22)
+
+Profiling showed Natasha NER was the dominant CPU cost (~91% of detection time,
+~20 ms/request). NER is only needed to find PERSON/ADDRESS that the rules miss.
+The detector now skips NER for a chunk when the rules already located a PERSON or
+ADDRESS there, which covers the common structured case while still running NER for
+free-text PERSON/ADDRESS. Measured single-thread throughput on the structured
+load input rose from ~261 req/s (NER always on) to ~5454 req/s (NER skipped);
+free-text input that needs NER stays at ~694 req/s. All NER tests and both quality
+gates still pass.
+
+On this workstation (6 logical CPUs, API and generator on the same machine) the
+service now sustains 500 RPS with 0 generator drops and 0 wrong roundtrips
+(p50 85 ms, p95 671 ms at 500 RPS). The 1000-RPS target is not reachable from
+this machine because the co-located generator saturates around 500 RPS; the
+server's CPU workers were idle during load, confirming the server has headroom
+and the bottleneck is the shared-machine generator. A separate load-generator
+machine is required to certify the 1000-RPS SLA, as documented in the team plan.
+
 The initial HTTPX generator saturated its own CPU and was replaced with Locust's
 C-backed client while preserving open-loop scheduling and honest drop counts.
 The application HTTP path was then optimized with httptools and pure ASGI
@@ -123,7 +142,19 @@ tested separately from the explicitly labeled characters/4 estimate.
 The external LLM API was **not called**: its endpoint/protocol details and
 credentials were not supplied. The adapter is OpenAI-compatible and its HTTP
 transport behavior is tested with a mock; this is not presented as a real-provider
-demo. The current deployment is loopback-only, not a public checker URL.
+demo. The current deployment is loopback-only, not a public checker URL. The
+`.env` and `.env.example` are ready for `LLM_BASE_URL`, `LLM_API_KEY`, and
+`LLM_MODEL`; until those are set, `/v1/chat` returns 503 (fail-closed), which is
+verified. The public URL and checker CIDR require deployment infrastructure and
+the checker's peer address, which were not supplied.
+
+## Code quality (2026-09-22)
+
+`/process` now rejects unknown fields (`extra="forbid"`, matching `/v1/chat`),
+with a regression test. The process engine caches the serialized consumer policy
+per request to avoid repeated `model_dump()` calls. Free-text detection was
+extended with regression tests: a date followed by `года рождения`/`г.р.`,
+`выдан <дата>` without `от`, and street addresses without a `д.` prefix.
 
 ## Remaining release gates
 

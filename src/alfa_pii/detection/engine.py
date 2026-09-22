@@ -12,7 +12,7 @@ INITIALS = r"(?:[А-ЯЁA-Z]\.[ \t]*){1,2}"
 PERSON_NAME = rf"(?:{WORD}[ \t]+{INITIALS}|{INITIALS}{WORD}|{NAME})"
 STREET_ADDRESS = (r"(?<!\w)(?P<value>(?:г(?:ород)?\.?\s+[^,;\n]{1,60},\s*)?"
                   r"(?:ул(?:ица)?|проспект|пр-т|пер(?:еулок)?|шоссе|наб(?:ережная)?)\.?\s+"
-                  r"[^,;\n]{1,80},?\s+д(?:ом)?\.?\s*\d{1,5}[а-яёa-z]?"
+                  r"[^,;\n]{1,80},?\s+(?:д(?:ом)?\.?\s*)?\d{1,5}[а-яёa-z]?"
                   r"(?:\s*,?\s*(?:корп(?:ус)?\.?|к\.|стр(?:оение)?\.?)\s*\d{1,5}[а-яёa-z]?)?"
                   r"(?:\s*,?\s*кв(?:артира)?\.?\s*\d{1,5}[а-яёa-z]?)?)(?!\w)")
 DATE = (r"(?:\d{1,4}[./-]\d{1,2}[./-]\d{1,4}|\d{1,2}\s+"
@@ -37,13 +37,14 @@ def labeled(label: str, value: str) -> str:
 SPECS: list[tuple[Kind, str]] = [
     (Kind.PERSON, labeled(r"ф\.?\s*и\.?\s*о\.?|клиент(?:а|у)?|за[её]мщик|заявитель|гражданин|гражданка", PERSON_NAME)),
     (Kind.BIRTH_DATE, labeled(r"дата\s+рождения|день\s+рождения|д\.?\s*р\.?|родил(?:ся|ась)", DATE)),
+    (Kind.BIRTH_DATE, rf"(?<!\d)(?P<value>{DATE})\s+(?:года\s+рождения|г\.?\s*р\.?)(?!\w)"),
     (Kind.BIRTH_PLACE, labeled(r"место\s+рождения|родил(?:ся|ась)\s+в", FIELD)),
     (Kind.PASSPORT, labeled(r"паспорт(?:\s+РФ)?(?:\s+серия)?|серия", r"\d{2}\s?\d{2}\s*(?:номер|№)?\s*\d{6}")),
     (Kind.PASSPORT, r"(?<!\d)(?P<value>\d{4}[ \t]+\d{6})(?!\d)"),
     (Kind.CITIZENSHIP, labeled(r"гражданство|гражданин(?!\s*[:=№\-—])|гражданка(?!\s*[:=№\-—])", FIELD)),
     (Kind.PASSPORT_ISSUER, labeled(r"кем\s+выдан|орган(?:,?\s+выдавший\s+паспорт|\s+выдачи)|паспорт\s+выдан", FIELD)),
     (Kind.DEPARTMENT_CODE, labeled(r"код\s+подразделения", r"\d{3}[ \t-]?\d{3}")),
-    (Kind.ISSUE_DATE, labeled(r"дата\s+выдачи(?:\s+паспорта)?|паспорт\s+выдан|выдан\s+от", DATE)),
+    (Kind.ISSUE_DATE, labeled(r"дата\s+выдачи(?:\s+паспорта)?|паспорт\s+выдан|выдан(?:\s+от)?", DATE)),
     (Kind.DRIVER_LICENSE, labeled(r"водительское\s+удостоверение|в\s*/?\s*у", r"\d{2}\s?[\dА-ЯЁ]{2}\s?\d{6}")),
     (Kind.ADDRESS, labeled(r"(?<!электронный\s)адрес(?:у|а|ом|е)?(?:\s+(?:клиента|регистрации|проживания|доставки))?|проживает\s+(?:по\s+адресу|в)|зарегистрирован[а]?\s+(?:по\s+адресу|в)|прописан[а]?\s+(?:по\s+адресу|в)", rf"[^;\n!?]{{1,250}}?(?=\s*{LABELS}|[;\n!?]|$)")),
     (Kind.ADDRESS, labeled(r"страна|город|насел[её]нный\s+пункт|улица|дом|квартира|почтовый\s+индекс", r"[^;,\n!?]{1,100}")),
@@ -139,7 +140,10 @@ class Detector:
                     add(Kind.INN, match.start("value"), match.end("value"), "checksum")
         except TimeoutError as exc:
             raise ServiceError(503, "detector_timeout") from exc
-        if self.ner is not None:
+        # NER is the dominant CPU cost. When rules already located a PERSON or
+        # ADDRESS in this chunk, NER is redundant for the common structured case;
+        # skip it to keep throughput high. NER still runs when rules miss both.
+        if self.ner is not None and not any(e.kind in {Kind.PERSON, Kind.ADDRESS} for e in result):
             from natasha import Doc
             doc = Doc(text)
             doc.segment(self.segmenter)
