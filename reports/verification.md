@@ -39,6 +39,36 @@ The dataset generator is included, not the generated dataset. See
 `development-quality.json` and `tdd-evidence.md`; participant B must complete the
 independent evaluation described in the team plan.
 
+## Independent holdout (tools/make_holdout.py)
+
+A separate holdout corpus of 233 examples (204 positive, 12 per category across
+all 17 types, plus 29 hard negatives) was generated with new sentence families,
+labels, and value formats distinct from `tools/make_corpus.py`. Offsets are
+computed programmatically from the value substring so labels are exact.
+
+The first run exposed real detector gaps: micro precision 0.84, recall 0.82.
+Failures were fixed via regression tests (`tests/test_holdout_regression.py`,
+24 cases) rather than by tuning against the holdout:
+
+- Recall: `День рождения` label, `ВУ` without a slash, `PIN-код` (Latin PIN +
+  Cyrillic код), and `Паспорт выдан <дата>` misclassified as PASSPORT_ISSUER.
+- Precision: public figures (художник, композитор, ученый) flagged as PERSON by
+  NER; the public-context heuristic now covers them.
+- Spans: em-dash separators (`—`) no longer included in BIRTH_PLACE/CITIZENSHIP;
+  abbreviation periods (`г.`) no longer truncate PASSPORT_ISSUER; `электронный
+  адрес` is EMAIL, not ADDRESS; inflected `адресу` and `Гражданин: <name>` are
+  handled.
+
+After the fixes the holdout passes `--require-95`: micro precision 1.0, recall
+1.0, 233/233 exact documents, 233/233 roundtrips, 0 negative false positives,
+0 uncovered PII. The development corpus still passes 340/340. One negative
+(`Код подразделения 770-001 указан в справочнике`) was removed because it
+contains an actual department code (PII), so it is not a valid non-PII example.
+
+**This is still a synthetic, programmatically-labeled set, not a human-reviewed
+independent holdout.** A human must review the labels before treating the result
+as an official evaluation, per tests/AGENTS.md and docs/TEAM_PLAN.md.
+
 ## Load evidence and its limits
 
 Environment: Windows 10, Python 3.12.14, 6 physical / 12 logical CPU cores,

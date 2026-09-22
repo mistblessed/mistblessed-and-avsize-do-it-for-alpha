@@ -21,6 +21,10 @@ user-supplied token-shaped strings are never a detection exemption.
 # Current state
 17 categories, Natasha PER/LOC support, typed contextual rules, two checksum
 validators, labeled initials, street/house address forms, chunk overlap, and a
-public-context heuristic. Free-text boundary and
-context accuracy still needs human-reviewed independent evaluation. Avoid adding
-example-specific name allowlists to improve a score.
+public-context heuristic. An independent holdout (tools/make_holdout.py) exposed
+and fixed gaps: `День рождения`/`ВУ`/`PIN-код` labels, `Паспорт выдан <дата>`
+as ISSUE_DATE, public-figure suppression (художник/композитор/ученый), em-dash
+separators, abbreviation periods (`г.`), `электронный адрес` as EMAIL, and
+inflected `адресу`/`Гражданин: <name>`. Free-text boundary and context accuracy
+still needs human-reviewed independent evaluation. Avoid adding example-specific
+name allowlists to improve a score.
