@@ -1,23 +1,16 @@
 # AlfaGen PII Protection
 
-A CPU-only Python protection module with the organizer's `/process` contract,
-exact restoration, per-consumer policies, an authenticated LLM proxy, encrypted
-Redis state, and executable evidence. **This is a hackathon implementation, not a
-certification of banking compliance or a demonstrated 1000-RPS deployment.**
+CPU-only Python-модуль защиты данных с контрактом `/process` организатора, точным восстановлением, политиками на уровне потребителей, аутентифицированным LLM-прокси, зашифрованным состоянием в Redis и исполняемыми доказательствами. **Это реализация для хакатона, а не сертификация банковского соответствия или продемонстрированное развёртывание на 1000 RPS.**
 
-Start with [the team plan](docs/TEAM_PLAN.md), [DeepSeek prompts](docs/PROMPTS.md),
-and [verification evidence](reports/verification.md). Documentation and code are
-English; short folder-level `AGENTS.md` files provide model context.
+Начните с [плана команды](docs/TEAM_PLAN.md), [промптов DeepSeek](docs/PROMPTS.md) и [доказательств верификации](reports/verification.md). Документация и код на английском; короткие файлы `AGENTS.md` на уровне папок дают контекст модели.
 
-## Quick start
+## Быстрый старт
 
-Requirements: Docker with Compose, or Python 3.11/3.12 and a reachable Redis.
-Dependencies and packaged Natasha weights are pinned in `uv.lock`; downloads are
-needed at build/install time, never during request processing.
+Требования: Docker с Compose, либо Python 3.11/3.12 и доступный Redis. Зависимости и упакованные веса Natasha зафиксированы в `uv.lock`; загрузки нужны только на этапе сборки/установки, никогда во время обработки запросов.
 
 ```sh
 python tools/bootstrap.py
-# Edit .env locally: LLM connection and exact checker source CIDRs.
+# Отредактируйте .env локально: подключение к LLM и точные CIDR источника проверки.
 docker compose up --build -d
 curl http://127.0.0.1:8000/health/ready
 uv sync --frozen
@@ -25,31 +18,19 @@ uv run python tools/demo.py
 uv run python tools/demo.py --chat
 ```
 
-`bootstrap.py` generates credentials without printing or overwriting them.
-The final command requires a real, configured OpenAI-compatible LLM endpoint.
-Empty LLM settings leave `/process` available but make `/v1/chat` return 503.
-Native alternative: start Redis, set `REDIS_URL` and `REDIS_PASSWORD` correctly,
-run `uv sync --frozen`, then `uv run python -m alfa_pii` from this directory.
-The module binds port 8000; use a firewall or bind Uvicorn explicitly to loopback
-when running outside Docker. Compose publishes to loopback by default.
+`bootstrap.py` генерирует учётные данные, не печатая и не перезаписывая их. Последняя команда требует реально настроенной OpenAI-совместимой LLM-точки. Пустые настройки LLM оставляют `/process` доступным, но заставляют `/v1/chat` возвращать 503. Нативный вариант: запустите Redis, корректно задайте `REDIS_URL` и `REDIS_PASSWORD`, выполните `uv sync --frozen`, затем `uv run python -m alfa_pii` из этой директории. Модуль слушает порт 8000; используйте файрвол или явно привяжите Uvicorn к loopback при запуске вне Docker. Compose по умолчанию публикует на loopback.
 
-## Configuration in five sentences
+## Конфигурация в пяти предложениях
 
-1. Generate `.env` with `python tools/bootstrap.py` and set Redis and LLM connection values locally.
-2. Edit `config/consumers.yaml` to enable consumers and choose `detect_types`, `mask_types`, `mask_enabled`, `demask`, `mode`, and `combinations`.
-3. Put each enabled consumer's credential in the environment variable named by its `key_env`; never put keys in YAML.
-4. Set `BENCHMARK_CIDRS` to the checker's verified peer addresses and configure the published host/port without trusting forwarded headers.
-5. Restart the service to apply settings, check `/health/ready`, and run the demo and tests before using the new policy.
+1. Сгенерируйте `.env` командой `python tools/bootstrap.py` и задайте локально значения подключения к Redis и LLM.
+2. Отредактируйте `config/consumers.yaml`, чтобы включить потребителей и выбрать `detect_types`, `mask_types`, `mask_enabled`, `demask`, `mode` и `combinations`.
+3. Поместите учётные данные каждого включённого потребителя в переменную окружения, названную по его `key_env`; никогда не кладите ключи в YAML.
+4. Задайте `BENCHMARK_CIDRS` как проверенные адреса пиров проверяющего и настройте публикуемый хост/порт, не доверяя пересылаемым заголовкам.
+5. Перезапустите сервис для применения настроек, проверьте `/health/ready` и запустите демо и тесты перед использованием новой политики.
 
-The default consumers are `benchmark`, `demo`, `no-restore`, and `conditional`.
-The first accepts only allowlisted peers, the others require their Bearer keys.
-An empty allowlist grants no anonymous access. `/metrics` always needs a key.
-Never allow all addresses just to make the grader connect; agree on network
-access or a trusted ingress with source-IP enforcement. Uvicorn forwarded-header
-parsing is disabled. TLS must be terminated by the approved deployment ingress;
-the local Compose setup is HTTP on loopback.
+Потребители по умолчанию: `benchmark`, `demo`, `no-restore` и `conditional`. Первый принимает только пиров из белого списка, остальные требуют их Bearer-ключи. Пустой белый список не даёт анонимного доступа. `/metrics` всегда требует ключ. Никогда не разрешайте все адреса только ради подключения проверяющего; договоритесь о сетевом доступе или доверенном входе с проверкой исходного IP. Разбор пересылаемых заголовков Uvicorn отключён. TLS должен завершаться одобренным входным шлюзом развёртывания; локальная настройка Compose — это HTTP на loopback.
 
-## Organizer contract
+## Контракт организатора
 
 ```http
 POST /process
@@ -58,48 +39,28 @@ Content-Type: application/json
 {"payload":"Клиент: Иванов Иван Иванович; Email: demo@example.org", "payload_id":"unique-id"}
 ```
 
-Success is exactly `{"result":"..."}`. Send that result back with the same ID to
-restore the original. Authorized clients may use `Authorization: Bearer ...`;
-the checker need not add headers if its peer address is allowlisted.
+Успех — это ровно `{"result":"..."}`. Отправьте этот результат обратно с тем же ID, чтобы восстановить оригинал. Авторизованные клиенты могут использовать `Authorization: Bearer ...`; проверяющему не нужно добавлять заголовки, если его адрес пира в белом списке.
 
-| Input for an existing ID | Behavior |
+| Вход для существующего ID | Поведение |
 |---|---|
-| Same original | Same stored mask |
-| Same mask | Exact original, if restoration remains allowed |
-| Other content | 409 conflict |
-| Original equals mask because no data was selected | Unchanged text on every retry |
-| Expired record with a live tombstone | 409 expired |
-| Changed effective policy | 409 policy changed; use a fresh ID |
+| Тот же оригинал | Тот же сохранённый маск |
+| Тот же маск | Точный оригинал, если восстановление всё ещё разрешено |
+| Другое содержимое | Конфликт 409 |
+| Оригинал равен маску, потому что данные не выбраны | Неизменённый текст при каждом повторе |
+| Истёкшая запись с живым tombstone | 409 expired |
+| Изменённая действующая политика | 409 policy changed; используйте свежий ID |
 
-State is scoped by consumer and endpoint. A changed restoration permission is
-checked immediately. Redis is shared across API processes; responses are not
-released before atomic state storage. Retention defaults to 30 minutes plus
-24-hour ID tombstones; after the tombstone expires the ID can be reused.
-Redis has no eviction, AOF, or RDB persistence in Compose. A Redis restart loses
-mappings and tombstones: restart an evaluation run with fresh IDs. No Redis HA or
-permanent exactly-once guarantee is claimed.
+Состояние ограничено потребителем и конечной точкой. Изменённое разрешение на восстановление проверяется немедленно. Redis разделяется между процессами API; ответы не выдаются до атомарного сохранения состояния. Хранение по умолчанию — 30 минут плюс 24-часовые tombstone для ID; после истечения tombstone ID можно использовать повторно. В Compose у Redis нет вытеснения, AOF или RDB-персистентности. Перезапуск Redis теряет сопоставления и tombstone: перезапускайте прогон оценки со свежими ID. Никакого Redis HA или постоянной гарантии exactly-once не заявляется.
 
-Errors use `{"error":"stable_code"}` without echoing input: 401/403 for access,
-409 for conflicts/expiry, 413 for size, 422 for malformed input, 429 with
-`Retry-After` for overload, and 503 for unavailable protection/storage.
+Ошибки используют `{"error":"stable_code"}` без эха ввода: 401/403 для доступа, 409 для конфликтов/истечения, 413 для размера, 422 для некорректного ввода, 429 с `Retry-After` для перегрузки и 503 для недоступной защиты/хранилища.
 
-## Detection and mask policies
+## Политики обнаружения и маскирования
 
-All 17 categories are represented: `PERSON`, `BIRTH_DATE`, `BIRTH_PLACE`,
-`PASSPORT`, `CITIZENSHIP`, `PASSPORT_ISSUER`, `DEPARTMENT_CODE`, `ISSUE_DATE`,
-`DRIVER_LICENSE`, `ADDRESS`, `EMAIL`, `PHONE`, `INN`, `CARD`, `CVV`, `PIN`,
-`CARDHOLDER`. Contextual rules supplement local Natasha NER. Case-insensitive
-matching does not change source offsets. Checksums provide extra evidence.
+Представлены все 17 категорий: `PERSON`, `BIRTH_DATE`, `BIRTH_PLACE`, `PASSPORT`, `CITIZENSHIP`, `PASSPORT_ISSUER`, `DEPARTMENT_CODE`, `ISSUE_DATE`, `DRIVER_LICENSE`, `ADDRESS`, `EMAIL`, `PHONE`, `INN`, `CARD`, `CVV`, `PIN`, `CARDHOLDER`. Контекстные правила дополняют локальный NER Natasha. Регистронезависимое сопоставление не меняет исходные смещения. Контрольные суммы дают дополнительные доказательства.
 
-`layout_mask` replaces letters/digits inside selected values with `*`, retaining
-punctuation and whitespace. **This is an assumption, not an official reference
-mask.** `typed_tokens` uses opaque 96-bit markers and retains identity within a
-request. Restoration is one-pass and cannot resolve another session's markers.
+`layout_mask` заменяет буквы/цифры внутри выбранных значений на `*`, сохраняя пунктуацию и пробелы. **Это допущение, а не официальный эталонный маск.** `typed_tokens` использует непрозрачные 96-битные маркеры и сохраняет идентичность в пределах запроса. Восстановление однопроходное и не может разрешить маркеры другой сессии.
 
-Add an `extra_rules` entry with `kind` and a regex containing a named `value`
-capture; add that kind to the consumer's detection and masking sets. Custom rules
-are trusted administrator configuration, have a match timeout, and should match
-spans shorter than the 512-character chunk overlap. For example:
+Добавьте запись `extra_rules` с `kind` и регулярным выражением, содержащим именованный захват `value`; добавьте этот kind в наборы обнаружения и маскирования потребителя. Пользовательские правила — это доверенная конфигурация администратора, у них есть таймаут сопоставления, и они должны сопоставлять фрагменты короче, чем перекрытие чанков в 512 символов. Например:
 
 ```yaml
 extra_rules:
@@ -107,37 +68,23 @@ extra_rules:
     pattern: 'Employee: (?P<value>EMP-\d{5})'
 ```
 
-`combinations: {PIN: [PIN, CARD]}` demonstrates the optional contextual mode on
-`/process`. Do not use it as the normal safety policy: the default masks an
-explicit PIN without requiring a card. Rule or model failure blocks processing.
+`combinations: {PIN: [PIN, CARD]}` демонстрирует опциональный контекстный режим на `/process`. Не используйте его как обычную политику безопасности: по умолчанию явный PIN маскируется без требования карты. Сбой правила или модели блокирует обработку.
 
-## LLM proxy
+## LLM-прокси
 
 ```http
 POST /v1/chat
-Authorization: Bearer <local consumer credential>
+Authorization: Bearer <локальные учётные данные потребителя>
 Content-Type: application/json
 
 {"request_id":"unique-chat-id", "message":"Summarize this synthetic customer record: ..."}
 ```
 
-Response: `{"request_id":"unique-chat-id","answer":"..."}`.
-The proxy uses typed tokens even if the consumer selects layout masking for
-`/process`, because changed model output cannot be restored by original offsets.
-It rejects disabled/partial protection and conditional unmasking configurations.
-Newly detected data in the model reply is masked before authorized original
-values are restored. Unknown or damaged markers are left unresolved.
+Ответ: `{"request_id":"unique-chat-id","answer":"..."}`. Прокси использует типизированные токены, даже если потребитель выбирает layout-маскирование для `/process`, потому что изменённый вывод модели нельзя восстановить по исходным смещениям. Он отклоняет отключённую/частичную защиту и конфигурации условного снятия маски. Вновь обнаруженные данные в ответе модели маскируются до восстановления авторизованных исходных значений. Неизвестные или повреждённые маркеры остаются неразрешёнными.
 
-Set `LLM_BASE_URL` to the API base including `/v1` where applicable,
-`LLM_MODEL` to the provider's actual model name, and `LLM_API_KEY` locally.
-The only implemented wire protocol is non-streaming OpenAI-compatible chat
-completions. HTTPS is required unless an explicitly approved local HTTP endpoint
-is configured. Redirects and ambient proxy settings are disabled. Chat retries
-reuse mappings but may call the model again; exactly-once LLM billing is not
-promised. No raw PII is intentionally sent to the model, but detector accuracy
-still requires independent evaluation.
+Задайте `LLM_BASE_URL` как базовый URL API, включая `/v1` где применимо, `LLM_MODEL` как фактическое имя модели провайдера и `LLM_API_KEY` локально. Единственный реализованный сетевой протокол — нестриминговые OpenAI-совместимые chat-завершения. HTTPS обязателен, если не настроена явно одобренная локальная HTTP-точка. Перенаправления и фоновые прокси-настройки отключены. Повторы чата переиспользуют сопоставления, но могут снова вызвать модель; exactly-once биллинг LLM не обещается. Никакие сырые PII намеренно не отправляются модели, но точность детектора всё равно требует независимой оценки.
 
-## Tests, quality, and load
+## Тесты, качество и нагрузка
 
 ```sh
 uv run pytest -q
@@ -151,70 +98,28 @@ uv run python tools/load.py --rps 1000 --seconds 300 --output reports/load-1000.
 uv run python tools/load.py --rps 20 --seconds 30 --long-every 10 --output reports/load-mixed.json
 ```
 
-On PowerShell set `$env:TEST_REDIS_URL = 'redis://127.0.0.1:16379/0'` separately.
-Create a disposable local test instance, if needed:
-`docker run -d --name alfa-pii-test-redis -p 127.0.0.1:16379:6379 redis:7.4-alpine redis-server --save '' --appendonly no`.
-Use a dedicated Redis for tests: each integration test cleans only its random
-namespace. An unset test URL skips the real Redis test and must be reported.
-The native process-pool test and NER test exercise real implementations.
+В PowerShell задайте `$env:TEST_REDIS_URL = 'redis://127.0.0.1:16379/0'` отдельно. При необходимости создайте одноразовый локальный тестовый экземпляр: `docker run -d --name alfa-pii-test-redis -p 127.0.0.1:16379:6379 redis:7.4-alpine redis-server --save '' --appendonly no`. Используйте выделенный Redis для тестов: каждый интеграционный тест очищает только своё случайное пространство имён. Незаданный тестовый URL пропускает реальный Redis-тест и должен быть отмечен. Нативный тест пула процессов и NER-тест используют реальные реализации.
 
-The 340 generated examples are DEVELOPMENT data: 20 per category, with repeated
-negative templates and no independent human review. Participant B must supply
-at least 170 genuinely unseen, manually reviewed control examples using the
-same JSONL schema. `quality.py` reports exact span/type metrics, document leakage,
-negative false positives, and exact roundtrips; it does not implement the unknown
-organizer's span-based edit-distance score. `--require-95` also requires no
-uncovered expected PII, exact restoration, and at least five expected positive
-entities per category (`--minimum-support`) on the supplied corpus.
+340 сгенерированных примеров — это DEVELOPMENT-данные: по 20 на категорию, с повторяющимися негативными шаблонами и без независимого человеческого ревью. Участник B должен предоставить минимум 170 действительно невиданных, вручную проверенных контрольных примеров по той же JSONL-схеме. `quality.py` сообщает точные метрики span/type, утечку документов, негативные ложные срабатывания и точные roundtrip; он не реализует неизвестный организаторский score на основе edit-distance по span. `--require-95` также требует отсутствия непокрытых ожидаемых PII, точного восстановления и минимум пяти ожидаемых позитивных сущностей на категорию (`--minimum-support`) на предоставленном корпусе.
 
-`load.py` schedules arrivals independently of completion and reports generator
-lag, dropped pairs, retries, actual successful throughput, and latency including
-failures. It uses Locust's C-backed FastHttpSession and waits for readiness and
-an authenticated warmup before measurement. Measure 100/300/600/1000 RPS first;
-attempt 2000 only with capacity.
-Use a separate load-generator machine for an SLA claim. `tools/locustfile.py`
-is an interactive closed-loop alternative, not evidence of offered arrival rate.
+`load.py` планирует поступления независимо от завершения и сообщает отставание генератора, отброшенные пары, повторы, фактическую успешную пропускную способность и задержку, включая сбои. Он использует C-поддерживаемый FastHttpSession от Locust и ждёт готовности и аутентифицированного прогрева перед измерением. Сначала измерьте 100/300/600/1000 RPS; 2000 пробуйте только при наличии запаса мощности. Для заявления об SLA используйте отдельную машину-генератор нагрузки. `tools/locustfile.py` — это интерактивная альтернатива с закрытым циклом, а не доказательство предлагаемой скорости поступления.
 
-## Observability and privacy
+## Наблюдаемость и приватность
 
-Structured application logs contain only stages, types, counts/timings, and
-random technical traces; access logs and upstream HTTP debug logs are disabled
-by the module entrypoint. All stage events share the generated `X-Request-ID`
-response-header trace, never the raw correlation ID supplied by the caller.
-Never enable request-body middleware in deployment.
-Prometheus counters/histograms expose RPS through `rate(pii_requests_total[1m])`,
-latency through `pii_request_seconds`, and processing volume through
-`pii_characters_total` and `pii_estimated_tokens_total`. Estimated tokens are
-characters/4, explicitly not DeepSeek tokenizer counts. When the provider returns
-valid usage metadata, `pii_llm_tokens_total{direction="input|output"}` records its
-actual reported counts; `pii_llm_usage_responses_total` distinguishes that evidence
-from missing metadata. Labels exclude user IDs and arbitrary paths.
+Структурированные журналы приложения содержат только этапы, типы, счётчики/тайминги и случайные технические трассы; журналы доступа и отладочные HTTP-журналы вышестоящего сервиса отключены точкой входа модуля. Все события этапов разделяют сгенерированный trace из заголовка ответа `X-Request-ID`, никогда — сырой ID корреляции, предоставленный вызывающим. Никогда не включайте middleware тела запроса в развёртывании. Счётчики/гистограммы Prometheus показывают RPS через `rate(pii_requests_total[1m])`, задержку через `pii_request_seconds` и объём обработки через `pii_characters_total` и `pii_estimated_tokens_total`. Оценённые токены — это символы/4, явно не счётчики токенизатора DeepSeek. Когда провайдер возвращает валидные метаданные использования, `pii_llm_tokens_total{direction="input|output"}` записывает его фактические сообщённые счётчики; `pii_llm_usage_responses_total` отличает эти доказательства от отсутствующих метаданных. Метки исключают ID пользователей и произвольные пути.
 
-AES-GCM encrypts stored records with associated scoped keys. HMAC fingerprints
-avoid raw IDs and unkeyed hashes of predictable data. PII necessarily exists in
-process memory during detection/restoration; do not claim secure memory erasure.
+AES-GCM шифрует сохранённые записи с ассоциированными ограниченными ключами. HMAC-отпечатки избегают сырых ID и неключевых хешей предсказуемых данных. PII неизбежно существует в памяти процесса во время обнаружения/восстановления; не заявляйте о безопасном стирании памяти.
 
-## Limits and next steps
+## Ограничения и следующие шаги
 
-Context, free-text address boundaries, unusual documents, and ambiguous dates
-need a larger independently annotated corpus. Address components are detected
-as candidates but are not exposed as a separate public address schema. A maximum
-input of two million Unicode characters / 8 MiB supports the tested large text,
-but the 100,000-token check currently uses lexical tokens, not the provider's
-unavailable tokenizer. Do not generalize short-request load results to large
-texts. Bounds, process count, and timeouts must fit the deployment CPU/RAM.
+Контекст, границы адресов в свободном тексте, необычные документы и неоднозначные даты требуют более крупного независимо аннотированного корпуса. Компоненты адреса обнаруживаются как кандидаты, но не выставляются как отдельная публичная адресная схема. Максимальный ввод в два миллиона символов Unicode / 8 МиБ поддерживает протестированный большой текст, но проверка на 100 000 токенов сейчас использует лексические токены, а не недоступный токенизатор провайдера. Не обобщайте результаты нагрузки на коротких запросах на большие тексты. Границы, число процессов и таймауты должны соответствовать CPU/RAM развёртывания.
 
-Full container-build evidence, real LLM connectivity, and public checker access
-are separately reported in `reports/verification.md`. After the hackathon:
-calibrate context on reviewed data, obtain the official mask scorer, add provider
-tokenization, confirm infrastructure sizing, and design Redis HA/key rotation.
+Полные доказательства сборки контейнера, реальное подключение к LLM и публичный доступ проверяющего отдельно описаны в `reports/verification.md`. После хакатона: откалибруйте контекст на проверенных данных, получите официальный маск-скоринг, добавьте токенизацию провайдера, подтвердите размер инфраструктуры и спроектируйте Redis HA/ротацию ключей.
 
-## Source-only ZIP
+## ZIP только с исходниками
 
 ```sh
 uv run python tools/package.py --output ../alfa-pii-source.zip
 ```
 
-The packager uses an explicit file allowlist and excludes `.env`, dependencies,
-caches, model binaries, and large files. Review reports before submission. A ZIP
-and a live externally reachable checker URL are both required by the onboarding.
+Пакер использует явный белый список файлов и исключает `.env`, зависимости, кеши, бинарники моделей и большие файлы. Проверьте отчёты перед отправкой. ZIP и живой внешне доступный URL проверяющего требуются оба для онбординга.
