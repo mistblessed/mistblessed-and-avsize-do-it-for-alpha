@@ -38,6 +38,7 @@ SPECS: list[tuple[Kind, str]] = [
     (Kind.PERSON, labeled(r"ф\.?\s*и\.?\s*о\.?|клиент(?:а|у)?|за[её]мщик|заявитель|гражданин|гражданка", PERSON_NAME)),
     (Kind.BIRTH_DATE, labeled(r"дата\s+рождения|день\s+рождения|д\.?\s*р\.?|родил(?:ся|ась)", DATE)),
     (Kind.BIRTH_DATE, rf"(?<!\d)(?P<value>{DATE})\s+(?:года\s+рождения|г\.?\s*р\.?)(?!\w)"),
+    (Kind.BIRTH_DATE, r"(?<!\d)(?P<value>(?:19|20)\d{2})\s+(?:года\s+рождения|г\.?\s*р\.?)(?!\w)"),
     (Kind.BIRTH_PLACE, labeled(r"место\s+рождения|родил(?:ся|ась)\s+в", FIELD)),
     (Kind.PASSPORT, labeled(r"паспорт(?:\s+РФ)?(?:\s+серия)?|серия", r"\d{2}\s?\d{2}\s*(?:номер|№)?\s*\d{6}")),
     (Kind.PASSPORT, r"(?<!\d)(?P<value>\d{4}[ \t]+\d{6})(?!\d)"),

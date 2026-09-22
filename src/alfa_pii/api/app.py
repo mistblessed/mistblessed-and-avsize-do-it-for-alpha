@@ -20,7 +20,8 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from alfa_pii.config import Consumer, Settings, load_policies
 from alfa_pii.domain import Kind, MaskResult, ServiceError
 from alfa_pii.llm import LLMClient
-from alfa_pii.observability import trace_id
+from alfa_pii.observability import consumer_id, trace_id
+from alfa_pii.ratelimit import TokenBucket
 from alfa_pii.service import ProcessEngine, ProtectionService
 from alfa_pii.state.store import Cipher, RedisStore
 from alfa_pii.transformation.masking import restore
@@ -110,7 +111,7 @@ class Observe:
         path = scope.get("path", "")
         route = path if path in {"/process", "/v1/chat", "/metrics", "/health/live", "/health/ready"} else "other"
         if self.state.active >= self.capacity:
-            self.requests.labels(route, "429").inc()
+            self.requests.labels(route, "429", "").inc()
             await JSONResponse({"error": "service_busy"}, 429, headers={"Retry-After": "1"})(scope, receive, send)
             return
         self.state.active += 1
@@ -118,6 +119,7 @@ class Observe:
         started = time.perf_counter()
         trace = secrets.token_hex(8)
         context_token = trace_id.set(trace)
+        consumer_token = consumer_id.set("")
         status, response_started = 500, False
         async def tracked_send(message: Any) -> None:
             nonlocal status, response_started
@@ -135,14 +137,16 @@ class Observe:
                     await JSONResponse({"error": "internal_error"}, 500)(scope, receive, tracked_send)
         finally:
             elapsed = time.perf_counter() - started
-            self.requests.labels(route, str(status)).inc()
-            self.latency.labels(route).observe(elapsed)
+            who = consumer_id.get()
+            self.requests.labels(route, str(status), who).inc()
+            self.latency.labels(route, who).observe(elapsed)
             self.state.active -= 1
             self.in_flight.dec()
             log.info(json.dumps({"event": "http", "trace": trace,
                                  "route": route, "status": status,
                                  "duration_ms": round(elapsed * 1000, 2)}))
             trace_id.reset(context_token)
+            consumer_id.reset(consumer_token)
 
 
 def create_app(settings: Settings | None = None, *, service: ProtectionService | None = None,
@@ -151,8 +155,8 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
     settings = settings or Settings()
     injected = service is not None
     registry = CollectorRegistry()
-    requests = Counter("pii_requests", "HTTP responses", ["route", "status"], registry=registry)
-    latency = Histogram("pii_request_seconds", "HTTP latency including queue and I/O", ["route"], registry=registry,
+    requests = Counter("pii_requests", "HTTP responses", ["route", "status", "consumer"], registry=registry)
+    latency = Histogram("pii_request_seconds", "HTTP latency including queue and I/O", ["route", "consumer"], registry=registry,
                         buckets=(.005, .01, .025, .05, .1, .25, .5, 1, 2, 5, 10, 30))
     chars = Counter("pii_characters", "Accepted input Unicode code points", registry=registry)
     estimated_tokens = Counter("pii_estimated_tokens", "Estimate: Unicode characters / 4; NOT model tokens", registry=registry)
@@ -206,6 +210,7 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
     app.state.service = service
     app.state.consumers = consumers or {}
     app.state.credentials = credentials or {}
+    app.state.buckets = {cid: TokenBucket(c.rate_limit) for cid, c in app.state.consumers.items() if c.rate_limit}
     app.state.llm = None
     app.state.active = 0
     app.add_middleware(Observe, state=app.state, capacity=settings.request_capacity,
@@ -217,9 +222,9 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
         identity = None
         if header.startswith("Bearer "):
             supplied = header[7:].encode()
-            for key, consumer_id in app.state.credentials.items():
+            for key, cid in app.state.credentials.items():
                 if hmac.compare_digest(supplied, key.encode()):
-                    identity = consumer_id
+                    identity = cid
         elif benchmark and request.client:
             try:
                 peer = ipaddress.ip_address(request.client.host)
@@ -232,6 +237,10 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
         consumer = app.state.consumers[identity]
         if not consumer.enabled:
             raise ServiceError(403, "consumer_disabled")
+        bucket = app.state.buckets.get(identity)
+        if bucket is not None and not bucket.allow():
+            raise ServiceError(429, "rate_limited")
+        consumer_id.set(identity)
         return consumer
 
     def check_size(text: str) -> None:
@@ -288,6 +297,9 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
     @app.get("/health/ready")
     async def ready() -> dict[str, str]:
         await app.state.service.store.ping()
+        engine_health = app.state.service.engine.health()
+        if not engine_health.get("ok", True):
+            raise ServiceError(503, "worker_unavailable")
         return {"status": "ready"}
 
     @app.get("/metrics")

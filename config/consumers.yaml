@@ -6,6 +6,8 @@ consumers:
   - id: demo
     key_env: DEMO_API_KEY
     mode: typed_tokens
+    # Optional per-consumer request rate limit (requests/second); omit for unlimited.
+    # rate_limit: 100
   - id: no-restore
     key_env: NO_RESTORE_API_KEY
     mode: typed_tokens

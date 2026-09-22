@@ -156,6 +156,24 @@ per request to avoid repeated `model_dump()` calls. Free-text detection was
 extended with regression tests: a date followed by `года рождения`/`г.р.`,
 `выдан <дата>` without `от`, and street addresses without a `д.` prefix.
 
+## Rate limiting, metrics, and reliability (2026-09-22)
+
+- **Per-consumer rate limiting**: a `rate_limit` (requests/second) option on each
+  consumer uses a token bucket (`ratelimit.py`); exceeding it returns 429
+  `rate_limited`. Tested with `test_per_consumer_rate_limit`.
+- **Per-consumer metrics**: `pii_requests_total` and `pii_request_seconds` now
+  carry a `consumer` label, so traffic can be filtered by client. Tested with
+  `test_metrics_include_consumer_label`.
+- **Config validation**: `Settings` rejects `CPU_CAPACITY < CPU_WORKERS` and
+  `TOMBSTONE_TTL <= STATE_TTL` at startup. Tested with
+  `test_settings_reject_inconsistent_capacity`.
+- **Health check**: `/health/ready` now also verifies the worker pool is alive,
+  not just Redis. Tested with `test_ready_checks_engine_health`.
+- **Property tests**: added Hypothesis tests for multiple-entity roundtrip,
+  layout-mask length/non-alnum preservation, and typed-token non-recovery of the
+  original. The full suite is 136 passed, 1 skipped (real Redis requires
+  `TEST_REDIS_URL`).
+
 ## Remaining release gates
 
 1. Curate and manually review at least 170 independent control examples, then

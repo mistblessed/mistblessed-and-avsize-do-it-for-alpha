@@ -2,3 +2,4 @@
 from contextvars import ContextVar
 
 trace_id: ContextVar[str] = ContextVar("pii_trace_id", default="")
+consumer_id: ContextVar[str] = ContextVar("pii_consumer_id", default="")

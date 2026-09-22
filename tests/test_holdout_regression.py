@@ -128,3 +128,8 @@ def test_issue_date_vydan_without_ot():
 def test_address_without_dom_prefix():
     text = "Проживает: г. Москва, ул. Тверская, 7"
     assert "г. Москва, ул. Тверская, 7" in value(text, "ADDRESS")
+
+
+def test_birth_year_followed_by_goda_rozhdeniya():
+    text = "Иванов Иван, 1985 года рождения, г. Тверь"
+    assert "1985" in value(text, "BIRTH_DATE")

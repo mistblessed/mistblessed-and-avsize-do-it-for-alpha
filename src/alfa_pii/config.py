@@ -22,6 +22,7 @@ class Consumer(BaseModel):
     mask_types: set[str] = Field(default_factory=lambda: {str(k) for k in Kind})
     combinations: dict[str, set[str]] = Field(default_factory=dict)
     key_env: str | None = None
+    rate_limit: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def consistent(self) -> "Consumer":
@@ -75,6 +76,14 @@ class Settings(BaseSettings):
     benchmark_cidrs: str = ""
     benchmark_consumer: str = "benchmark"
     allow_http_llm: bool = False
+
+    @model_validator(mode="after")
+    def consistent(self) -> "Settings":
+        if self.cpu_capacity < self.cpu_workers:
+            raise ValueError("CPU_CAPACITY must be at least CPU_WORKERS")
+        if self.tombstone_ttl <= self.state_ttl:
+            raise ValueError("TOMBSTONE_TTL must exceed STATE_TTL")
+        return self
 
     def key_bytes(self) -> bytes:
         try:

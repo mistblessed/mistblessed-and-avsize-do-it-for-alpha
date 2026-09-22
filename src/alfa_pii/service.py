@@ -33,6 +33,7 @@ def protect(detector: Detector, text: str, policy: Consumer, mode: str,
 class Engine(Protocol):
     async def protect(self, text: str, policy: Consumer, mode: str,
                       trusted_tokens: tuple[str, ...] = ()) -> MaskResult: ...
+    def health(self) -> dict[str, Any]: ...
 
 
 class InlineEngine:
@@ -43,6 +44,9 @@ class InlineEngine:
     async def protect(self, text: str, policy: Consumer, mode: str,
                       trusted_tokens: tuple[str, ...] = ()) -> MaskResult:
         return protect(self.detector, text, policy, mode, trusted_tokens)
+
+    def health(self) -> dict[str, Any]:
+        return {"ok": True, "pending": 0}
 
 
 _detector: Detector | None = None
@@ -97,6 +101,9 @@ class ProcessEngine:
 
     def close(self) -> None:
         self.pool.shutdown(wait=True, cancel_futures=True)
+
+    def health(self) -> dict[str, Any]:
+        return {"ok": not self.pool._shutdown_thread, "pending": self.pending}
 
 
 class ProtectionService:

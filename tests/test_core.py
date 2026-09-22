@@ -69,6 +69,39 @@ def test_arbitrary_unicode_roundtrip(text):
         assert restore(result.text, result) == text
 
 
+@given(st.lists(st.text(min_size=1, max_size=20), min_size=1, max_size=5))
+def test_multiple_entities_roundtrip(parts):
+    text = "".join(parts)
+    # Build non-overlapping entities covering every other part.
+    entities = []
+    cursor = 0
+    for i, part in enumerate(parts):
+        if i % 2 == 0 and part:
+            entities.append(Entity(Kind.PERSON, cursor, cursor + len(part)))
+        cursor += len(part)
+    if not entities:
+        return
+    for mode in ["layout_mask", "typed_tokens"]:
+        result = mask(text, entities, mode)
+        assert restore(result.text, result) == text
+
+
+@given(st.text(min_size=1, max_size=50).filter(lambda t: any(c.isalnum() for c in t)))
+def test_layout_mask_preserves_length_and_non_alnum(text):
+    result = mask(text, [Entity(Kind.PERSON, 0, len(text))], "layout_mask")
+    assert len(result.text) == len(text)
+    for a, b in zip(text, result.text, strict=True):
+        if not a.isalnum():
+            assert a == b
+
+
+@given(st.text(min_size=2, max_size=30).filter(lambda t: any(c.isalnum() for c in t)))
+def test_typed_tokens_never_contain_original(text):
+    result = mask(text, [Entity(Kind.PERSON, 0, len(text))], "typed_tokens")
+    assert text not in result.text
+    assert all(orig not in result.text for orig in result.tokens.values())
+
+
 def test_tokens_stable_inside_request_and_scoped_between_requests():
     text = "Иван Иван"
     spans = [Entity(Kind.PERSON, 0, 4), Entity(Kind.PERSON, 5, 9)]
