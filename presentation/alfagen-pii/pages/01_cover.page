@@ -47,4 +47,4 @@ elements:
   - elementId: page
     elementType: text
     bounds: [851, 486, 50, 22]
-    content: {style: "$small", align: [right, top], text: "01 / 07"}
+    content: {style: "$small", align: [right, top], text: "01 / 06"}

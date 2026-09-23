@@ -8,7 +8,7 @@ elements:
   - elementId: title
     elementType: text
     bounds: [58, 73, 835, 65]
-    content: {style: "$title", text: "Что проверено — и что ещё нет"}
+    content: {style: "$title", text: "Локальная проверка работоспособности"}
   - elementId: top-rule
     elementType: shape
     shapeName: rect
@@ -34,7 +34,7 @@ elements:
   - elementId: notyet-label
     elementType: text
     bounds: [521, 185, 347, 34]
-    content: {fontFamily: Arial, fontSize: 24, bold: true, color: "$ink", text: "Открытые проверки"}
+    content: {fontFamily: Arial, fontSize: 24, bold: true, color: "$ink", text: "Границы оценки"}
   - elementId: notyet-1
     elementType: text
     bounds: [521, 236, 360, 90]
@@ -60,4 +60,4 @@ elements:
   - elementId: page
     elementType: text
     bounds: [832, 488, 70, 20]
-    content: {style: "$small", align: [right, top], text: "06 / 07"}
+    content: {style: "$small", align: [right, top], text: "06 / 06"}

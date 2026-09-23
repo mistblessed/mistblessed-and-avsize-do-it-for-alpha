@@ -97,7 +97,7 @@ const fade = spawnSync(runtimePython, [path.join(projectDir, "add_fade.py"), can
   encoding: "utf8",
 });
 if (fade.status !== 0) throw new Error(fade.stderr || "Cannot add slide transitions");
-const finalPath = path.join(projectDir, "deck.pptx");
+const finalPath = path.join(projectDir, process.env.OUTPUT_PPTX ?? "deck.pptx");
 const result = await finalizePresentation({
   workspaceDir: process.cwd(),
   candidatePath,
@@ -111,6 +111,6 @@ const result = await finalizePresentation({
   requiredNativeChartOwnerSlides: [],
   fontPolicy: { basis: "design", families: ["Arial", "Consolas"] },
   verifyArtifactToolImport: true,
-  receiptPath: path.join(stagingDir, "deck-v2.validation.json"),
+  receiptPath: path.join(stagingDir, `${path.basename(finalPath)}.validation.json`),
 });
 console.log(JSON.stringify({ pages: pages.length, finalPath, qaDir, result }, null, 2));
