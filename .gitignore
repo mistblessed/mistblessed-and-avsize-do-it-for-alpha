@@ -11,3 +11,4 @@ __pycache__/
 *.pyc
 *.zip
 reports/local-*
+reports/*.jsonl

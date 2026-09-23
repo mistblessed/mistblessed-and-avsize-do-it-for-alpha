@@ -20,7 +20,8 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from alfa_pii.config import Consumer, Settings, load_policies
 from alfa_pii.domain import Kind, MaskResult, ServiceError
 from alfa_pii.llm import LLMClient
-from alfa_pii.observability import trace_id
+from alfa_pii.observability import consumer_id, trace_id
+from alfa_pii.ratelimit import TokenBucket
 from alfa_pii.service import ProcessEngine, ProtectionService
 from alfa_pii.state.store import Cipher, RedisStore
 from alfa_pii.transformation.masking import restore
@@ -29,9 +30,9 @@ log = logging.getLogger("alfa_pii")
 
 
 class ProcessRequest(BaseModel):
-    model_config = ConfigDict(strict=True, extra="ignore")
-    payload: str
-    payload_id: str
+    model_config = ConfigDict(strict=True, extra="forbid")
+    payload: str = Field(description="Text to mask or restore.")
+    payload_id: str = Field(description="Correlation id; replaying it returns the same mask or restores the original.")
 
     @field_validator("payload", "payload_id")
     @classmethod
@@ -110,7 +111,7 @@ class Observe:
         path = scope.get("path", "")
         route = path if path in {"/process", "/v1/chat", "/metrics", "/health/live", "/health/ready"} else "other"
         if self.state.active >= self.capacity:
-            self.requests.labels(route, "429").inc()
+            self.requests.labels(route, "429", "").inc()
             await JSONResponse({"error": "service_busy"}, 429, headers={"Retry-After": "1"})(scope, receive, send)
             return
         self.state.active += 1
@@ -118,6 +119,7 @@ class Observe:
         started = time.perf_counter()
         trace = secrets.token_hex(8)
         context_token = trace_id.set(trace)
+        consumer_token = consumer_id.set("")
         status, response_started = 500, False
         async def tracked_send(message: Any) -> None:
             nonlocal status, response_started
@@ -135,14 +137,16 @@ class Observe:
                     await JSONResponse({"error": "internal_error"}, 500)(scope, receive, tracked_send)
         finally:
             elapsed = time.perf_counter() - started
-            self.requests.labels(route, str(status)).inc()
-            self.latency.labels(route).observe(elapsed)
+            who = consumer_id.get()
+            self.requests.labels(route, str(status), who).inc()
+            self.latency.labels(route, who).observe(elapsed)
             self.state.active -= 1
             self.in_flight.dec()
             log.info(json.dumps({"event": "http", "trace": trace,
                                  "route": route, "status": status,
                                  "duration_ms": round(elapsed * 1000, 2)}))
             trace_id.reset(context_token)
+            consumer_id.reset(consumer_token)
 
 
 def create_app(settings: Settings | None = None, *, service: ProtectionService | None = None,
@@ -151,8 +155,8 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
     settings = settings or Settings()
     injected = service is not None
     registry = CollectorRegistry()
-    requests = Counter("pii_requests", "HTTP responses", ["route", "status"], registry=registry)
-    latency = Histogram("pii_request_seconds", "HTTP latency including queue and I/O", ["route"], registry=registry,
+    requests = Counter("pii_requests", "HTTP responses", ["route", "status", "consumer"], registry=registry)
+    latency = Histogram("pii_request_seconds", "HTTP latency including queue and I/O", ["route", "consumer"], registry=registry,
                         buckets=(.005, .01, .025, .05, .1, .25, .5, 1, 2, 5, 10, 30))
     chars = Counter("pii_characters", "Accepted input Unicode code points", registry=registry)
     estimated_tokens = Counter("pii_estimated_tokens", "Estimate: Unicode characters / 4; NOT model tokens", registry=registry)
@@ -186,6 +190,11 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
             settings.cpu_timeout, settings.use_ner, extra_rules)
         app.state.service = ProtectionService(store, engine)
         app.state.consumers, app.state.credentials = policies, keys
+        log.info(json.dumps({"event": "startup", "trace": trace_id.get(),
+                             "consumers": sorted(policies), "cpu_workers": settings.cpu_workers,
+                             "cpu_capacity": settings.cpu_capacity, "use_ner": settings.use_ner,
+                             "llm_configured": bool(settings.llm_base_url),
+                             "benchmark_cidrs": bool(settings.benchmark_cidrs)}))
         try:
             await store.ping()
             warmup = Consumer(id="warmup")
@@ -206,6 +215,7 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
     app.state.service = service
     app.state.consumers = consumers or {}
     app.state.credentials = credentials or {}
+    app.state.buckets = {cid: TokenBucket(c.rate_limit) for cid, c in app.state.consumers.items() if c.rate_limit}
     app.state.llm = None
     app.state.active = 0
     app.add_middleware(Observe, state=app.state, capacity=settings.request_capacity,
@@ -217,9 +227,9 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
         identity = None
         if header.startswith("Bearer "):
             supplied = header[7:].encode()
-            for key, consumer_id in app.state.credentials.items():
+            for key, cid in app.state.credentials.items():
                 if hmac.compare_digest(supplied, key.encode()):
-                    identity = consumer_id
+                    identity = cid
         elif benchmark and request.client:
             try:
                 peer = ipaddress.ip_address(request.client.host)
@@ -232,6 +242,10 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
         consumer = app.state.consumers[identity]
         if not consumer.enabled:
             raise ServiceError(403, "consumer_disabled")
+        bucket = app.state.buckets.get(identity)
+        if bucket is not None and not bucket.allow():
+            raise ServiceError(429, "rate_limited")
+        consumer_id.set(identity)
         return consumer
 
     def check_size(text: str) -> None:
@@ -249,14 +263,21 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse({"error": "invalid_request"}, 422)
 
-    @app.post("/process", response_model=ProcessResponse)
+    @app.post("/process", response_model=ProcessResponse,
+              summary="Mask or restore a payload",
+              description="Mask PII in a payload, or restore a previously masked payload using the same payload_id. "
+                          "Replaying the original returns the same mask; replaying the mask restores the exact original.")
     async def process(body: ProcessRequest, request: Request) -> ProcessResponse:
         consumer = authorize(request, benchmark=True)
         check_size(body.payload)
         result = await app.state.service.process(body.payload_id, body.payload, consumer)
         return ProcessResponse(result=result)
 
-    @app.post("/v1/chat", response_model=ChatResponse)
+    @app.post("/v1/chat", response_model=ChatResponse,
+              summary="LLM proxy with PII protection",
+              description="Send a message to the configured LLM through the proxy. The message is masked with typed "
+                          "tokens before the call; newly generated PII in the reply is masked, then authorized "
+                          "original values are restored.")
     async def chat(body: ChatRequest, request: Request) -> ChatResponse:
         consumer = authorize(request)
         check_size(body.message)
@@ -281,16 +302,21 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
         answer = restore(cleaned.text, mapping) if consumer.demask and record["policy"]["demask"] else cleaned.text
         return ChatResponse(request_id=body.request_id, answer=answer)
 
-    @app.get("/health/live")
+    @app.get("/health/live", summary="Liveness probe")
     async def live() -> dict[str, str]:
         return {"status": "alive"}
 
-    @app.get("/health/ready")
+    @app.get("/health/ready", summary="Readiness probe",
+             description="Verifies Redis connectivity and that the worker pool is alive.")
     async def ready() -> dict[str, str]:
         await app.state.service.store.ping()
+        engine_health = app.state.service.engine.health()
+        if not engine_health.get("ok", True):
+            raise ServiceError(503, "worker_unavailable")
         return {"status": "ready"}
 
-    @app.get("/metrics")
+    @app.get("/metrics", summary="Prometheus metrics",
+             description="Authenticated Prometheus metrics endpoint.")
     async def metrics(request: Request) -> Response:
         authorize(request)
         return Response(generate_latest(registry), media_type="text/plain; version=0.0.4")

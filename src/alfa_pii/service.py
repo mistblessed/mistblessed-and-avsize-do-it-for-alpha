@@ -33,6 +33,7 @@ def protect(detector: Detector, text: str, policy: Consumer, mode: str,
 class Engine(Protocol):
     async def protect(self, text: str, policy: Consumer, mode: str,
                       trusted_tokens: tuple[str, ...] = ()) -> MaskResult: ...
+    def health(self) -> dict[str, Any]: ...
 
 
 class InlineEngine:
@@ -43,6 +44,9 @@ class InlineEngine:
     async def protect(self, text: str, policy: Consumer, mode: str,
                       trusted_tokens: tuple[str, ...] = ()) -> MaskResult:
         return protect(self.detector, text, policy, mode, trusted_tokens)
+
+    def health(self) -> dict[str, Any]:
+        return {"ok": True, "pending": 0}
 
 
 _detector: Detector | None = None
@@ -67,6 +71,7 @@ class ProcessEngine:
             mp_context=multiprocessing.get_context("spawn"), initializer=init_worker,
             initargs=(use_ner, extra_rules))
         self.capacity, self.timeout, self.pending = capacity, timeout, 0
+        self._policy_cache: dict[int, dict[str, Any]] = {}
 
     async def protect(self, text: str, policy: Consumer, mode: str,
                       trusted_tokens: tuple[str, ...] = ()) -> MaskResult:
@@ -75,7 +80,11 @@ class ProcessEngine:
         self.pending += 1
         loop = asyncio.get_running_loop()
         try:
-            future = loop.run_in_executor(self.pool, run_worker, text, policy.model_dump(), mode, trusted_tokens)
+            serialized = self._policy_cache.get(id(policy))
+            if serialized is None:
+                serialized = policy.model_dump()
+                self._policy_cache[id(policy)] = serialized
+            future = loop.run_in_executor(self.pool, run_worker, text, serialized, mode, trusted_tokens)
         except Exception as exc:
             self.pending -= 1
             raise ServiceError(503, "worker_unavailable") from exc
@@ -92,6 +101,9 @@ class ProcessEngine:
 
     def close(self) -> None:
         self.pool.shutdown(wait=True, cancel_futures=True)
+
+    def health(self) -> dict[str, Any]:
+        return {"ok": not self.pool._shutdown_thread, "pending": self.pending}
 
 
 class ProtectionService:

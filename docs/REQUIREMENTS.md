@@ -6,11 +6,18 @@
 | Требование | Реализация | Исполняемое доказательство |
 |---|---|---|
 | Все 17 типов и исходные смещения | detection/engine.py | test_required_category_offsets (три варианта регистра) |
+| Независимый holdout и регрессия | detection/engine.py | test_holdout_regression.py (24 случая); tools/make_holdout.py |
 | Публичные имена/адреса филиалов | контекстное подавление | test_public_and_non_personal_text; реальный NER-тест |
 | Текстовые даты, разделители, переставленные даты | ограниченные контекстные правила | фикстуры основных категорий |
 | Точное layout- и токен-восстановление | transformation/masking.py | Unicode property-тест; точный roundtrip |
 | Без рекурсивного/чужого расширения токенов | однопроходный ограниченный поиск | test_no_recursive_token_restoration; тест ограниченных токенов |
 | Точная JSON-схема процесса | api/app.py | test_contract_replays_and_conflict |
+| Отклонение неизвестных полей /process | api/app.py | test_process_rejects_unknown_fields |
+| Per-consumer rate limit | api/app.py; ratelimit.py | test_per_consumer_rate_limit |
+| Метрики по потребителям | api/app.py | test_metrics_include_consumer_label |
+| Валидация конфига | config.py | test_settings_reject_inconsistent_capacity |
+| Health-check воркеров | api/app.py; service.py | test_ready_checks_engine_health |
+| Property-тесты roundtrip | transformation/masking.py | test_multiple_entities_roundtrip; test_layout_mask_preserves_length_and_non_alnum |
 | Повторы и конкурентный первый запрос | отпечатки содержимого + атомарное состояние | сервисные тесты повторов/конкурентности; реальный Redis-тест |
 | Общее состояние между процессами | RedisStore | test_real_redis_cross_instance_atomicity_expiry_and_encryption |
 | Авторизованное восстановление, отключённый потребитель | политика потребителя на запрос | тесты изоляции и отключённого потребителя |

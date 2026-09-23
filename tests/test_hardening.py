@@ -122,6 +122,60 @@ async def test_validation_size_limit_and_metrics():
         assert "pii_estimated_tokens_total" in metrics.text
 
 
+async def test_per_consumer_rate_limit():
+    service = ProtectionService(MemoryStore(Cipher(secrets.token_bytes(32))), InlineEngine(Detector(False)))
+    app = create_app(Settings(_env_file=None), service=service,
+                     consumers={"a": Consumer(id="a", rate_limit=2)}, credentials={"key": "a"})
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+        first = await c.post("/process", json={"payload": "hello", "payload_id": "1"},
+                             headers={"Authorization": "Bearer key"})
+        second = await c.post("/process", json={"payload": "hello", "payload_id": "2"},
+                              headers={"Authorization": "Bearer key"})
+        third = await c.post("/process", json={"payload": "hello", "payload_id": "3"},
+                             headers={"Authorization": "Bearer key"})
+        assert first.status_code == 200 and second.status_code == 200
+        assert third.status_code == 429
+        assert third.json() == {"error": "rate_limited"}
+
+
+async def test_metrics_include_consumer_label():
+    service = ProtectionService(MemoryStore(Cipher(secrets.token_bytes(32))), InlineEngine(Detector(False)))
+    app = create_app(Settings(_env_file=None), service=service,
+                     consumers={"a": Consumer(id="a")}, credentials={"key": "a"})
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+        await c.post("/process", json={"payload": "hello", "payload_id": "1"},
+                     headers={"Authorization": "Bearer key"})
+        metrics = await c.get("/metrics", headers={"Authorization": "Bearer key"})
+        assert metrics.status_code == 200
+        assert 'consumer="a"' in metrics.text
+
+
+def test_settings_reject_inconsistent_capacity():
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, cpu_workers=8, cpu_capacity=4)
+
+
+async def test_ready_checks_engine_health():
+    service = ProtectionService(MemoryStore(Cipher(secrets.token_bytes(32))), InlineEngine(Detector(False)))
+    app = create_app(Settings(_env_file=None), service=service,
+                     consumers={"a": Consumer(id="a")}, credentials={"key": "a"})
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+        assert (await c.get("/health/ready")).status_code == 200
+
+
+@pytest.mark.slow
+async def test_process_engine_graceful_shutdown():
+    engine = ProcessEngine(1, 2, 20, False, [])
+    try:
+        result = await engine.protect("Email: shutdown@example.org", Consumer(id="a"), "typed_tokens")
+        assert "shutdown@example.org" not in result.text
+        assert engine.health()["ok"] is True
+    finally:
+        await asyncio.to_thread(engine.close)
+    assert engine.health()["ok"] is False
+
+
 @pytest.mark.parametrize("options", [{"mask_types": set(), "detect_types": set()},
                                        {"combinations": {"PIN": {"PIN", "CARD"}}}])
 async def test_chat_cannot_forward_intentionally_unprotected_policy(options):

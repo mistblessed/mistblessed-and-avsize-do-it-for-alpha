@@ -12,38 +12,42 @@ INITIALS = r"(?:[А-ЯЁA-Z]\.[ \t]*){1,2}"
 PERSON_NAME = rf"(?:{WORD}[ \t]+{INITIALS}|{INITIALS}{WORD}|{NAME})"
 STREET_ADDRESS = (r"(?<!\w)(?P<value>(?:г(?:ород)?\.?\s+[^,;\n]{1,60},\s*)?"
                   r"(?:ул(?:ица)?|проспект|пр-т|пер(?:еулок)?|шоссе|наб(?:ережная)?)\.?\s+"
-                  r"[^,;\n]{1,80},?\s+д(?:ом)?\.?\s*\d{1,5}[а-яёa-z]?"
+                  r"[^,;\n]{1,80},?\s+(?:д(?:ом)?\.?\s*)?\d{1,5}[а-яёa-z]?"
                   r"(?:\s*,?\s*(?:корп(?:ус)?\.?|к\.|стр(?:оение)?\.?)\s*\d{1,5}[а-яёa-z]?)?"
                   r"(?:\s*,?\s*кв(?:артира)?\.?\s*\d{1,5}[а-яёa-z]?)?)(?!\w)")
 DATE = (r"(?:\d{1,4}[./-]\d{1,2}[./-]\d{1,4}|\d{1,2}\s+"
         r"(?:январ[яь]|феврал[яь]|март[а]?|апрел[яь]|ма[йя]|июн[яь]|июл[яь]|"
-        r"август[а]?|сентябр[яь]|октябр[яь]|ноябр[яь]|декабр[яь])\s+\d{4}"
-        r"(?:\s+года|\s+г\.)?)")
+        r"август[а]?|сентябр[яь]|октябр[яь]|ноябр[яь]|декабр[яь])\s+\d{4})"
+        r"(?:\s+года|\s*г\.?)?")
 LABELS = (r"(?:дата\s+(?:рождения|выдачи)|место\s+рождения|паспорт|гражданство|"
           r"кем\s+выдан|код\s+подразделения|водительское\s+удостоверение|адрес|"
           r"email|e-mail|телефон|инн|cvv|cvc|pin|пин|имя\s+держателя|фио)\s*:")
-FIELD = rf"[^;\n!?]{{1,250}}?(?=\s*{LABELS}|[;\n!?]|\.(?:\s|$)|$)"
+# Abbreviations whose trailing period is not a sentence boundary (г., ул., д., ...).
+ABBREV = r"(?:г|ул|д|пр|кв|корп|стр|обл|пос|дер|с|р-н)"
+FIELD = rf"[^;\n!?]{{1,250}}?(?=\s*{LABELS}|[;\n!?]|(?<!{ABBREV})\.(?:\s|$)|$)"
 PERSONAL = re.compile(r"клиент|пациент|за[её]мщик|заявитель|мой|мо[яё]|прожива|регистрац|фио", re.I)
-PUBLIC = re.compile(r"поэт|писател|памятник|отделени[ея]\s+банка|офис\s+банка|филиал\s+банка", re.I)
+PUBLIC = re.compile(r"поэт|писател|памятник|художник|композитор|ученый|учёный|скульптор|архитектор|отделени[ея]\s+банка|офис\s+банка|филиал\s+банка", re.I)
 TOKEN = re.compile(r"⟦[A-Z_]+:[0-9a-f]{24}⟧")
 
 
 def labeled(label: str, value: str) -> str:
-    return rf"(?<!\w)(?:{label})\s*[:=№\-]?\s*(?P<value>{value})(?!\w)"
+    return rf"(?<!\w)(?:{label})\s*[:=№\-—]?\s*(?P<value>(?![\s:=\-—]){value})(?!\w)"
 
 
 SPECS: list[tuple[Kind, str]] = [
-    (Kind.PERSON, labeled(r"ф\.?\s*и\.?\s*о\.?|клиент(?:а|у)?|за[её]мщик|заявитель", PERSON_NAME)),
-    (Kind.BIRTH_DATE, labeled(r"дата\s+рождения|д\.?\s*р\.?|родил(?:ся|ась)", DATE)),
+    (Kind.PERSON, labeled(r"ф\.?\s*и\.?\s*о\.?|клиент(?:а|у)?|за[её]мщик|заявитель|гражданин|гражданка", PERSON_NAME)),
+    (Kind.BIRTH_DATE, labeled(r"дата\s+рождения|день\s+рождения|д\.?\s*р\.?|родил(?:ся|ась)", DATE)),
+    (Kind.BIRTH_DATE, rf"(?<!\d)(?P<value>{DATE})\s+(?:года\s+рождения|г\.?\s*р\.?)(?!\w)"),
+    (Kind.BIRTH_DATE, r"(?<!\d)(?P<value>(?:19|20)\d{2})\s+(?:года\s+рождения|г\.?\s*р\.?)(?!\w)"),
     (Kind.BIRTH_PLACE, labeled(r"место\s+рождения|родил(?:ся|ась)\s+в", FIELD)),
     (Kind.PASSPORT, labeled(r"паспорт(?:\s+РФ)?(?:\s+серия)?|серия", r"\d{2}\s?\d{2}\s*(?:номер|№)?\s*\d{6}")),
     (Kind.PASSPORT, r"(?<!\d)(?P<value>\d{4}[ \t]+\d{6})(?!\d)"),
-    (Kind.CITIZENSHIP, labeled(r"гражданство|гражданин|гражданка", FIELD)),
+    (Kind.CITIZENSHIP, labeled(r"гражданство|гражданин(?!\s*[:=№\-—])|гражданка(?!\s*[:=№\-—])", FIELD)),
     (Kind.PASSPORT_ISSUER, labeled(r"кем\s+выдан|орган(?:,?\s+выдавший\s+паспорт|\s+выдачи)|паспорт\s+выдан", FIELD)),
     (Kind.DEPARTMENT_CODE, labeled(r"код\s+подразделения", r"\d{3}[ \t-]?\d{3}")),
-    (Kind.ISSUE_DATE, labeled(r"дата\s+выдачи(?:\s+паспорта)?|выдан\s+от", DATE)),
-    (Kind.DRIVER_LICENSE, labeled(r"водительское\s+удостоверение|в\s*/\s*у", r"\d{2}\s?[\dА-ЯЁ]{2}\s?\d{6}")),
-    (Kind.ADDRESS, labeled(r"адрес(?:\s+(?:клиента|регистрации|проживания|доставки))?|проживает\s+(?:по\s+адресу|в)|зарегистрирован[а]?\s+(?:по\s+адресу|в)", rf"[^;\n!?]{{1,250}}?(?=\s*{LABELS}|[;\n!?]|$)")),
+    (Kind.ISSUE_DATE, labeled(r"дата\s+выдачи(?:\s+паспорта)?|паспорт\s+выдан|выдан(?:\s+от)?", DATE)),
+    (Kind.DRIVER_LICENSE, labeled(r"водительское\s+удостоверение|в\s*/?\s*у", r"\d{2}\s?[\dА-ЯЁ]{2}\s?\d{6}")),
+    (Kind.ADDRESS, labeled(r"(?<!электронный\s)адрес(?:у|а|ом|е)?(?:\s+(?:клиента|регистрации|проживания|доставки))?|проживает\s+(?:по\s+адресу|в)|зарегистрирован[а]?\s+(?:по\s+адресу|в)|прописан[а]?\s+(?:по\s+адресу|в)", rf"[^;\n!?]{{1,250}}?(?=\s*{LABELS}|[;\n!?]|$)")),
     (Kind.ADDRESS, labeled(r"страна|город|насел[её]нный\s+пункт|улица|дом|квартира|почтовый\s+индекс", r"[^;,\n!?]{1,100}")),
     (Kind.ADDRESS, STREET_ADDRESS),
     (Kind.EMAIL, r"(?<![\w.+-])(?P<value>[\w.!#$%&'*+/=?^`{|}~\-]+@[\w-]+(?:\.[\w-]+)+)(?![\w-])"),
@@ -52,7 +56,7 @@ SPECS: list[tuple[Kind, str]] = [
     (Kind.INN, labeled(r"инн", r"(?:\d{12}|\d{10})")),
     (Kind.CARD, labeled(r"(?:номер\s+)?(?:банковской\s+)?карт[аы]|pan", r"\d(?:[ \t-]?\d){12,18}")),
     (Kind.CVV, labeled(r"cvv2?|cvc2?|код\s+безопасности(?:\s+карты)?", r"\d{3,4}")),
-    (Kind.PIN, labeled(r"пин(?:[ \t-]*код)?(?:\s+карты)?|pin(?:[ \t-]*code)?", r"\d{4,6}")),
+    (Kind.PIN, labeled(r"пин(?:[ \t-]*код)?(?:\s+карты)?|pin(?:[ \t-]*(?:code|код))?(?:\s+карты)?", r"\d{4,6}")),
     (Kind.CARDHOLDER, labeled(r"имя\s+держателя(?:\s+карты)?|держатель(?:\s+карты)?|cardholder", NAME)),
 ]
 RULES = [(kind, re.compile(pattern, re.I)) for kind, pattern in SPECS]
@@ -137,7 +141,10 @@ class Detector:
                     add(Kind.INN, match.start("value"), match.end("value"), "checksum")
         except TimeoutError as exc:
             raise ServiceError(503, "detector_timeout") from exc
-        if self.ner is not None:
+        # NER is the dominant CPU cost. When rules already located a PERSON or
+        # ADDRESS in this chunk, NER is redundant for the common structured case;
+        # skip it to keep throughput high. NER still runs when rules miss both.
+        if self.ner is not None and not any(e.kind in {Kind.PERSON, Kind.ADDRESS} for e in result):
             from natasha import Doc
             doc = Doc(text)
             doc.segment(self.segmenter)
@@ -156,8 +163,8 @@ class Detector:
 
 def resolve(entities: list[Entity]) -> list[Entity]:
     priority: dict[str, int] = {Kind.CARDHOLDER: 10, Kind.DRIVER_LICENSE: 9, Kind.PASSPORT: 8,
-                Kind.BIRTH_PLACE: 7, Kind.CITIZENSHIP: 7, Kind.PASSPORT_ISSUER: 7,
-                Kind.BIRTH_DATE: 7, Kind.ISSUE_DATE: 7, Kind.ADDRESS: 6}
+                Kind.ISSUE_DATE: 8, Kind.BIRTH_PLACE: 7, Kind.CITIZENSHIP: 7, Kind.PASSPORT_ISSUER: 7,
+                Kind.BIRTH_DATE: 7, Kind.ADDRESS: 6}
     groups: list[list[Entity]] = []
     boundary = -1
     for e in sorted(entities, key=lambda e: (e.start, e.end)):

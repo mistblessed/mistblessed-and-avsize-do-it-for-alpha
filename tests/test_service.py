@@ -82,6 +82,12 @@ async def test_no_pii_and_validation_do_not_echo_input(client):
     assert "LEAK_SENTINEL" not in response.text
 
 
+async def test_process_rejects_unknown_fields(client):
+    response = await client.post("/process", json={"payload": "hello", "payload_id": "x", "extra": "field"},
+                                 headers={"Authorization": "Bearer key-a"})
+    assert response.status_code == 422
+
+
 async def test_no_default_public_access(client):
     response = await client.post("/process", json={"payload": "hello", "payload_id": "x"})
     assert response.status_code == 401
