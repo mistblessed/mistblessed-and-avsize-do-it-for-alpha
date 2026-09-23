@@ -133,3 +133,13 @@ def test_address_without_dom_prefix():
 def test_birth_year_followed_by_goda_rozhdeniya():
     text = "Иванов Иван, 1985 года рождения, г. Тверь"
     assert "1985" in value(text, "BIRTH_DATE")
+
+
+def test_date_with_g_suffix_without_dot():
+    text = "Дата рождения: 12.01.1990г"
+    assert any("12.01.1990" in v for v in value(text, "BIRTH_DATE"))
+
+
+def test_issue_date_with_g_suffix_without_dot():
+    text = "Паспорт: 4510 654321, выдан 15.03.2015г"
+    assert any("15.03.2015" in v for v in value(text, "ISSUE_DATE"))
