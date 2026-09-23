@@ -143,3 +143,8 @@ def test_date_with_g_suffix_without_dot():
 def test_issue_date_with_g_suffix_without_dot():
     text = "Паспорт: 4510 654321, выдан 15.03.2015г"
     assert any("15.03.2015" in v for v in value(text, "ISSUE_DATE"))
+
+
+def test_address_with_postal_index():
+    text = "Адрес: 123456, г. Москва, ул. Тверская, д. 7"
+    assert "123456, г. Москва, ул. Тверская, д. 7" in value(text, "ADDRESS")

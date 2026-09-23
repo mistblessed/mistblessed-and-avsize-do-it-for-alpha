@@ -164,6 +164,18 @@ async def test_ready_checks_engine_health():
         assert (await c.get("/health/ready")).status_code == 200
 
 
+@pytest.mark.slow
+async def test_process_engine_graceful_shutdown():
+    engine = ProcessEngine(1, 2, 20, False, [])
+    try:
+        result = await engine.protect("Email: shutdown@example.org", Consumer(id="a"), "typed_tokens")
+        assert "shutdown@example.org" not in result.text
+        assert engine.health()["ok"] is True
+    finally:
+        await asyncio.to_thread(engine.close)
+    assert engine.health()["ok"] is False
+
+
 @pytest.mark.parametrize("options", [{"mask_types": set(), "detect_types": set()},
                                        {"combinations": {"PIN": {"PIN", "CARD"}}}])
 async def test_chat_cannot_forward_intentionally_unprotected_policy(options):

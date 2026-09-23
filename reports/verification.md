@@ -171,8 +171,20 @@ extended with regression tests: a date followed by `года рождения`/`
   not just Redis. Tested with `test_ready_checks_engine_health`.
 - **Property tests**: added Hypothesis tests for multiple-entity roundtrip,
   layout-mask length/non-alnum preservation, and typed-token non-recovery of the
-  original. The full suite is 136 passed, 1 skipped (real Redis requires
-  `TEST_REDIS_URL`).
+  original.
+- **Fuzz tests**: Hypothesis fuzzes the `/process` contract with random payloads
+  and ids, verifying mask/restore roundtrip, conflict behavior, and concurrent
+  first requests (`tests/test_fuzz_contract.py`).
+- **Graceful shutdown**: `ProcessEngine.close()` shuts the pool down cleanly and
+  `health()` reports not-ok afterwards (`test_process_engine_graceful_shutdown`).
+- **OpenAPI**: endpoints and request models carry summaries/descriptions.
+- **Startup logging**: non-secret config (consumers, workers, NER, LLM flag,
+  CIDR flag) is logged at startup; secrets are never logged.
+- **Deployment guide**: `docs/DEPLOYMENT.md` documents the exact steps to connect
+  a real LLM, expose a public URL, set the checker CIDR, and verify the live chain.
+- **Detection**: dates with a `г` suffix without a dot (`12.01.1990г`) and
+  addresses with a postal index are covered by regression tests.
+  The full suite is 143 passed, 1 skipped (real Redis requires `TEST_REDIS_URL`).
 
 ## Remaining release gates
 

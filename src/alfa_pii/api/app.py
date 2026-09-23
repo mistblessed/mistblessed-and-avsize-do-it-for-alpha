@@ -31,8 +31,8 @@ log = logging.getLogger("alfa_pii")
 
 class ProcessRequest(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
-    payload: str
-    payload_id: str
+    payload: str = Field(description="Text to mask or restore.")
+    payload_id: str = Field(description="Correlation id; replaying it returns the same mask or restores the original.")
 
     @field_validator("payload", "payload_id")
     @classmethod
@@ -190,6 +190,11 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
             settings.cpu_timeout, settings.use_ner, extra_rules)
         app.state.service = ProtectionService(store, engine)
         app.state.consumers, app.state.credentials = policies, keys
+        log.info(json.dumps({"event": "startup", "trace": trace_id.get(),
+                             "consumers": sorted(policies), "cpu_workers": settings.cpu_workers,
+                             "cpu_capacity": settings.cpu_capacity, "use_ner": settings.use_ner,
+                             "llm_configured": bool(settings.llm_base_url),
+                             "benchmark_cidrs": bool(settings.benchmark_cidrs)}))
         try:
             await store.ping()
             warmup = Consumer(id="warmup")
@@ -258,14 +263,21 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse({"error": "invalid_request"}, 422)
 
-    @app.post("/process", response_model=ProcessResponse)
+    @app.post("/process", response_model=ProcessResponse,
+              summary="Mask or restore a payload",
+              description="Mask PII in a payload, or restore a previously masked payload using the same payload_id. "
+                          "Replaying the original returns the same mask; replaying the mask restores the exact original.")
     async def process(body: ProcessRequest, request: Request) -> ProcessResponse:
         consumer = authorize(request, benchmark=True)
         check_size(body.payload)
         result = await app.state.service.process(body.payload_id, body.payload, consumer)
         return ProcessResponse(result=result)
 
-    @app.post("/v1/chat", response_model=ChatResponse)
+    @app.post("/v1/chat", response_model=ChatResponse,
+              summary="LLM proxy with PII protection",
+              description="Send a message to the configured LLM through the proxy. The message is masked with typed "
+                          "tokens before the call; newly generated PII in the reply is masked, then authorized "
+                          "original values are restored.")
     async def chat(body: ChatRequest, request: Request) -> ChatResponse:
         consumer = authorize(request)
         check_size(body.message)
@@ -290,11 +302,12 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
         answer = restore(cleaned.text, mapping) if consumer.demask and record["policy"]["demask"] else cleaned.text
         return ChatResponse(request_id=body.request_id, answer=answer)
 
-    @app.get("/health/live")
+    @app.get("/health/live", summary="Liveness probe")
     async def live() -> dict[str, str]:
         return {"status": "alive"}
 
-    @app.get("/health/ready")
+    @app.get("/health/ready", summary="Readiness probe",
+             description="Verifies Redis connectivity and that the worker pool is alive.")
     async def ready() -> dict[str, str]:
         await app.state.service.store.ping()
         engine_health = app.state.service.engine.health()
@@ -302,7 +315,8 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
             raise ServiceError(503, "worker_unavailable")
         return {"status": "ready"}
 
-    @app.get("/metrics")
+    @app.get("/metrics", summary="Prometheus metrics",
+             description="Authenticated Prometheus metrics endpoint.")
     async def metrics(request: Request) -> Response:
         authorize(request)
         return Response(generate_latest(registry), media_type="text/plain; version=0.0.4")
