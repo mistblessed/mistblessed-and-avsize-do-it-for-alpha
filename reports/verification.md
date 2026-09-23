@@ -1,22 +1,23 @@
 # Verification report
 
-Recorded on 2026-09-22. This report separates
+Updated on 2026-09-23. This report separates
 implemented behavior, actual local measurements, and unverified release gates.
 
 ## Automated checks
 
-- **101 tests passed**, 0 failures,
+- **159 tests passed**, 0 failures,
   0 errors, 0 skips in the final run.
 - Actual Redis integration executed against a dedicated loopback Docker Redis;
   cross-instance atomic creation, encryption, exact replay, and expiry passed.
 - Actual local Natasha weights and an actual child process were exercised.
 - Ruff and mypy passed. Native startup, readiness, synthetic mask/restore, and
   authenticated metrics were exercised over TCP, not only through ASGI tests.
-- Compose configuration validates; the pinned uv image manifest exists.
-- A full application Docker image build and Linux/Python 3.11 boot were **not
-  verified**. The first build attempt stopped during environment preparation
-  because drive C: ran out of space. Only project-generated caches were removed,
-  and the disposable project environment was transparently compressed.
+- Compose configuration validates. A full application image was built and booted
+  with Linux/Python 3.11; both API and Redis became healthy, and the synthetic
+  mask/restore/metrics demo passed against the containerized service over TCP.
+- A flaky typed-token property case was fixed: random token IDs are regenerated
+  when their nonce accidentally contains the protected value. The Windows demo
+  now configures UTF-8 output before printing Unicode markers.
 
 Equivalent checks from an installed project:
 `TEST_REDIS_URL=<dedicated-instance> uv run pytest -q`, `uv run ruff check .`,
@@ -39,9 +40,20 @@ The dataset generator is included, not the generated dataset. See
 `development-quality.json` and `tdd-evidence.md`; participant B must complete the
 independent evaluation described in the team plan.
 
-## Independent holdout (tools/make_holdout.py)
+## Synthetic candidate corpus (tools/make_holdout.py)
 
-A separate holdout corpus of 233 examples (204 positive, 12 per category across
+Update (2026-09-23): this section records a historical synthetic development
+evaluation, not an independent holdout. A distinct-text audit found 14 repeated
+rows among the 233 generated rows (219 unique texts); only four distinct INN
+texts and six distinct CARD texts remain. The new `tools/validate_holdout.py`
+rejects duplicates and enforces per-type support for future private reviewed
+corpora. On the current generator output it fails at line 149 because of a
+duplicate text. The synthetic-only `quality.py --require-95` run still reports
+204 true positives, zero false positives or negatives, and 233/233 roundtrips;
+those figures do not establish independence or validity of the corpus. Do not
+use them as independent evidence.
+
+A synthetic candidate corpus of 233 examples (204 positive, 12 per category across
 all 17 types, plus 29 hard negatives) was generated with new sentence families,
 labels, and value formats distinct from `tools/make_corpus.py`. Offsets are
 computed programmatically from the value substring so labels are exact.
@@ -59,7 +71,7 @@ Failures were fixed via regression tests (`tests/test_holdout_regression.py`,
   адрес` is EMAIL, not ADDRESS; inflected `адресу` and `Гражданин: <name>` are
   handled.
 
-After the fixes the holdout passes `--require-95`: micro precision 1.0, recall
+After the fixes the synthetic quality evaluation passes `--require-95`: micro precision 1.0, recall
 1.0, 233/233 exact documents, 233/233 roundtrips, 0 negative false positives,
 0 uncovered PII. The development corpus still passes 340/340. One negative
 (`Код подразделения 770-001 указан в справочнике`) was removed because it
@@ -139,14 +151,24 @@ errors, foreign-marker isolation, fake-marker evasion handling, tamper detection
 policy changes, and fail-closed behavior. Provider-reported token counters are
 tested separately from the explicitly labeled characters/4 estimate.
 
-The external LLM API was **not called**: its endpoint/protocol details and
-credentials were not supplied. The adapter is OpenAI-compatible and its HTTP
-transport behavior is tested with a mock; this is not presented as a real-provider
-demo. The current deployment is loopback-only, not a public checker URL. The
-`.env` and `.env.example` are ready for `LLM_BASE_URL`, `LLM_API_KEY`, and
-`LLM_MODEL`; until those are set, `/v1/chat` returns 503 (fail-closed), which is
-verified. The public URL and checker CIDR require deployment infrastructure and
-the checker's peer address, which were not supplied.
+The configured external LLM endpoint was tested with synthetic data only. The
+scoped LLM trust bundle contains the verified Russian Trusted Root and Sub CA
+certificates used by the live endpoint; their thumbprints are pinned by a test.
+Initially, the VPN-routed request reached the gateway but returned 403. On
+2026-09-23, a domain-specific Direct route for `alfagen.alfabank.ru` was
+confirmed in the local VPN client, without changing global VPN settings. The
+containerized service then completed an authenticated `/v1/chat` demo through
+the real provider with HTTP 200 and a model reply, as well as the synthetic
+`/process` mask/exact-restore and metrics checks. The model reply did not echo
+a masked marker, so this live demo does not itself establish restoration of
+PII from provider output; the restoration path is covered by local tests. The
+verified deployment is loopback-only, not a public checker URL. On
+2026-09-23, the hackathon `benchmark` consumer was configured for anonymous
+IPv4/IPv6 `/process` access from all source addresses, as explicitly requested.
+An unauthenticated local HTTP mask/restore passed; `/v1/chat` and `/metrics`
+still returned 401 without a key. This deliberately removes the limited-system
+control for `/process` and must be restricted again after grading. Public
+ingress remains an external gate.
 
 ## Code quality (2026-09-22)
 
@@ -184,20 +206,26 @@ extended with regression tests: a date followed by `года рождения`/`
   a real LLM, expose a public URL, set the checker CIDR, and verify the live chain.
 - **Detection**: dates with a `г` suffix without a dot (`12.01.1990г`) and
   addresses with a postal index are covered by regression tests.
-  The full suite is 143 passed, 1 skipped (real Redis requires `TEST_REDIS_URL`).
+  The full suite is 159 passed with the real Redis test enabled.
 
 ## Remaining release gates
 
 1. Curate and manually review at least 170 independent control examples, then
    run the quality gate without exposing them to the implementation model.
 2. Confirm reference mask formatting and official scoring behavior with organizers.
-3. Build and boot the Linux image on a machine with sufficient disk, configure the
-   real provider, and demonstrate the complete live LLM chain.
-4. Configure the actual checker peer allowlist / ingress and externally reachable
-   URL; repeat a five-minute workload on that hardware with production logging.
+3. Demonstrate provider-output marker restoration in a live `/v1/chat` reply;
+   the current successful live reply did not echo its marker.
+4. Configure public ingress and an externally reachable URL; repeat a five-minute
+   workload on that hardware with production logging. The current all-source
+   `/process` access is a temporary hackathon exception, not a bank-safe policy.
 5. Meet the throughput/latency target through measured HTTP/runtime tuning and,
    if needed, multiple API containers sharing Redis, with properly sized retention.
 
-Source ZIP generation and archive/secret verification are performed after this
-report is written. The project is implemented and locally exercised, but these
-external and performance gates prevent claiming complete submission readiness.
+The source-only ZIP was rebuilt on 2026-09-23 and checked for archive integrity,
+the required public CA certificate, and absence of the local `.env` values and
+private keys. The packaging rule was corrected to include the public AlfaGen CA
+but exclude arbitrary PEM files and the misleading historical
+`reports/holdout-quality.json` generated from development examples. The project
+is implemented and locally exercised, but the independent holdout, public URL,
+checker ingress, and performance gates prevent claiming complete submission
+readiness.

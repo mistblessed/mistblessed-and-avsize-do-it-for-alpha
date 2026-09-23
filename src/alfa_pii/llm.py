@@ -1,5 +1,6 @@
 """OpenAI-compatible transport. Does not log URLs, credentials, or upstream bodies."""
 import json
+import ssl
 from collections.abc import Callable
 from urllib.parse import urlsplit
 
@@ -8,11 +9,17 @@ import httpx
 from alfa_pii.domain import ServiceError
 
 
+def build_tls_context(ca_bundle: str) -> ssl.SSLContext:
+    """Use platform trust by default or an explicitly supplied corporate CA bundle."""
+    return ssl.create_default_context(cafile=ca_bundle or None)
+
+
 class LLMClient:
     def __init__(self, base_url: str, api_key: str, model: str, timeout: float = 30,
                  max_response_bytes: int = 8_388_608, allow_http: bool = False,
                  transport: httpx.AsyncBaseTransport | None = None,
-                 on_usage: Callable[[int, int], None] | None = None) -> None:
+                 on_usage: Callable[[int, int], None] | None = None,
+                 ca_bundle: str = "") -> None:
         parsed = urlsplit(base_url)
         if not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError("LLM base URL must be an absolute URL without credentials or query")
@@ -24,7 +31,7 @@ class LLMClient:
         self.on_usage = on_usage
         self.client = httpx.AsyncClient(base_url=base_url.rstrip("/") + "/", timeout=timeout,
             headers={"Authorization": "Bearer " + api_key}, transport=transport,
-            follow_redirects=False, trust_env=False)
+            follow_redirects=False, trust_env=False, verify=build_tls_context(ca_bundle))
 
     async def complete(self, text: str) -> str:
         try:

@@ -1,13 +1,21 @@
 """Print synthetic demo inputs/results only. Credentials are never printed."""
 import argparse
 import os
+import sys
 import uuid
 
 import httpx
 from dotenv import load_dotenv
 
 
+def configure_output() -> None:
+    """Keep Unicode masks printable in Windows consoles with legacy code pages."""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
+
 def main() -> None:
+    configure_output()
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--env-file", default=".env")
@@ -38,4 +46,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

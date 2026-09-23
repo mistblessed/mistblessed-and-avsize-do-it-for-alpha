@@ -1,8 +1,11 @@
 import asyncio
 import secrets
+from pathlib import Path
 
 import httpx
 import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
 
 from alfa_pii.api.app import create_app
 from alfa_pii.config import Consumer, Settings
@@ -11,6 +14,18 @@ from alfa_pii.domain import Entity, Kind, ServiceError
 from alfa_pii.service import InlineEngine, ProcessEngine, ProtectionService, protect
 from alfa_pii.state.store import Cipher, MemoryStore
 from alfa_pii.transformation.masking import restore
+
+
+def test_bundled_alfagen_root_ca_has_expected_thumbprint():
+    certificates = x509.load_pem_x509_certificates(
+        Path("config/ca/russian-trusted-root.pem").read_bytes()
+    )
+
+    assert {certificate.fingerprint(hashes.SHA1()).hex().upper()
+            for certificate in certificates} == {
+        "6741AB02CF6598C09652DC34D2DC095904E32B52",
+        "8FF915CCAB7BC16F8C5C8099D53E0E115B3AEC2F",
+    }
 
 
 def test_specific_types_win_over_generic_nested_entities():
@@ -104,6 +119,21 @@ async def test_benchmark_allowlist_uses_actual_peer_not_forwarded_header():
             response = await c.post("/process", json={"payload": "hello", "payload_id": "id"},
                                     headers={"X-Forwarded-For": "192.0.2.1"})
             assert response.status_code == expected
+
+
+async def test_public_benchmark_cidrs_open_only_process():
+    service = ProtectionService(MemoryStore(Cipher(secrets.token_bytes(32))), InlineEngine(Detector(False)))
+    app = create_app(Settings(_env_file=None, benchmark_cidrs="0.0.0.0/0,::/0"), service=service,
+                     consumers={"benchmark": Consumer(id="benchmark")})
+    for peer in ("198.51.100.10", "2001:db8::10"):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, client=(peer, 123)),
+                                     base_url="http://test") as client:
+            masked = await client.post("/process", json={"payload": "Email: demo@example.org", "payload_id": peer})
+            assert masked.status_code == 200
+            restored = await client.post("/process", json={"payload": masked.json()["result"], "payload_id": peer})
+            assert restored.json() == {"result": "Email: demo@example.org"}
+            assert (await client.get("/metrics")).status_code == 401
+            assert (await client.post("/v1/chat", json={"request_id": peer, "message": "hello"})).status_code == 401
 
 
 async def test_validation_size_limit_and_metrics():

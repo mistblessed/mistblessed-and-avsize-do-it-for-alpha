@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     llm_model: str = ""
     llm_timeout: float = Field(default=30, gt=0)
     llm_max_response_bytes: int = Field(default=8_388_608, ge=1024)
+    llm_ca_bundle: str = ""
     benchmark_cidrs: str = ""
     benchmark_consumer: str = "benchmark"
     allow_http_llm: bool = False

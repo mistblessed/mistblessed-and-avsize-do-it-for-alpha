@@ -23,8 +23,10 @@ def mask(text: str, entities: list[Entity], mode: str) -> MaskResult:
         else:
             identity = (str(e.kind), original)
             if identity not in identities:
+                marker_scaffold = f"⟦{e.kind}:⟧"
+                avoid_original = original not in marker_scaffold
                 token = f"⟦{e.kind}:{secrets.token_hex(12)}⟧"
-                while token in text:
+                while token in text or (avoid_original and original in token):
                     token = f"⟦{e.kind}:{secrets.token_hex(12)}⟧"
                 identities[identity] = token
                 result.tokens[token] = original
@@ -54,4 +56,3 @@ def restore(text: str, mapping: MaskResult) -> str:
         parts.append(text[cursor:])
         return "".join(parts)
     return text
-

@@ -6,7 +6,7 @@
 | Требование | Реализация | Исполняемое доказательство |
 |---|---|---|
 | Все 17 типов и исходные смещения | detection/engine.py | test_required_category_offsets (три варианта регистра) |
-| Независимый holdout и регрессия | detection/engine.py | test_holdout_regression.py (24 случая); tools/make_holdout.py |
+| Синтетическая регрессия; независимый holdout ожидает ручной проверки | detection/engine.py; tools/validate_holdout.py | test_holdout_regression.py (24 случая); docs/HOLDOUT_REVIEW.md |
 | Публичные имена/адреса филиалов | контекстное подавление | test_public_and_non_personal_text; реальный NER-тест |
 | Текстовые даты, разделители, переставленные даты | ограниченные контекстные правила | фикстуры основных категорий |
 | Точное layout- и токен-восстановление | transformation/masking.py | Unicode property-тест; точный roundtrip |

@@ -4,6 +4,7 @@ import secrets
 import httpx
 import pytest
 
+from alfa_pii import llm as llm_module
 from alfa_pii.api.app import create_app
 from alfa_pii.config import Consumer, Settings
 from alfa_pii.detection.engine import Detector
@@ -11,6 +12,36 @@ from alfa_pii.domain import ServiceError
 from alfa_pii.llm import LLMClient
 from alfa_pii.service import InlineEngine, ProcessEngine, ProtectionService
 from alfa_pii.state.store import Cipher, MemoryStore
+from tools import demo
+
+
+def test_demo_configures_utf8_output(monkeypatch):
+    configured = []
+
+    class Output:
+        def reconfigure(self, **kwargs):
+            configured.append(kwargs)
+
+    monkeypatch.setattr(demo.sys, "stdout", Output())
+
+    demo.configure_output()
+
+    assert configured == [{"encoding": "utf-8"}]
+
+
+def test_llm_tls_context_uses_system_trust_and_optional_ca(monkeypatch):
+    contexts = []
+    expected = object()
+
+    def create_default_context(*, cafile=None):
+        contexts.append(cafile)
+        return expected
+
+    monkeypatch.setattr(llm_module.ssl, "create_default_context", create_default_context)
+
+    assert llm_module.build_tls_context("") is expected
+    assert llm_module.build_tls_context("corporate-ca.pem") is expected
+    assert contexts == [None, "corporate-ca.pem"]
 
 
 @pytest.mark.parametrize("behavior,expected", [("timeout", 504), ("redirect", 502), ("invalid", 502), ("oversized", 502)])

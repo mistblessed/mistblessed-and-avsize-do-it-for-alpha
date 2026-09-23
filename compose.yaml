@@ -19,6 +19,8 @@ services:
     env_file: ${APP_ENV_FILE:-.env}
     environment:
       REDIS_URL: redis://redis:6379/0
+      # Scoped to the outbound LLM client; this does not modify system-wide trust.
+      LLM_CA_BUNDLE: /app/config/ca/russian-trusted-root.pem
     ports:
       - ${BIND_ADDRESS:-127.0.0.1}:${PORT:-8000}:8000
     depends_on:
@@ -36,4 +38,3 @@ networks:
   private:
     internal: true
   egress: {}
-

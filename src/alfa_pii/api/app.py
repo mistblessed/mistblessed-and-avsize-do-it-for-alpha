@@ -9,9 +9,10 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
+from fastapi.security import HTTPBearer
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from redis.asyncio import Redis
@@ -27,6 +28,7 @@ from alfa_pii.state.store import Cipher, RedisStore
 from alfa_pii.transformation.masking import restore
 
 log = logging.getLogger("alfa_pii")
+bearer_auth = HTTPBearer(auto_error=False)
 
 
 class ProcessRequest(BaseModel):
@@ -202,7 +204,7 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
             if settings.llm_base_url:
                 app.state.llm = LLMClient(settings.llm_base_url, settings.llm_api_key.get_secret_value(),
                     settings.llm_model, settings.llm_timeout, settings.llm_max_response_bytes, settings.allow_http_llm,
-                    on_usage=record_usage)
+                    on_usage=record_usage, ca_bundle=settings.llm_ca_bundle)
             yield
         finally:
             if app.state.llm:
@@ -263,7 +265,7 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse({"error": "invalid_request"}, 422)
 
-    @app.post("/process", response_model=ProcessResponse,
+    @app.post("/process", response_model=ProcessResponse, dependencies=[Depends(bearer_auth)],
               summary="Mask or restore a payload",
               description="Mask PII in a payload, or restore a previously masked payload using the same payload_id. "
                           "Replaying the original returns the same mask; replaying the mask restores the exact original.")
@@ -273,7 +275,7 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
         result = await app.state.service.process(body.payload_id, body.payload, consumer)
         return ProcessResponse(result=result)
 
-    @app.post("/v1/chat", response_model=ChatResponse,
+    @app.post("/v1/chat", response_model=ChatResponse, dependencies=[Depends(bearer_auth)],
               summary="LLM proxy with PII protection",
               description="Send a message to the configured LLM through the proxy. The message is masked with typed "
                           "tokens before the call; newly generated PII in the reply is masked, then authorized "
@@ -315,7 +317,7 @@ def create_app(settings: Settings | None = None, *, service: ProtectionService |
             raise ServiceError(503, "worker_unavailable")
         return {"status": "ready"}
 
-    @app.get("/metrics", summary="Prometheus metrics",
+    @app.get("/metrics", summary="Prometheus metrics", dependencies=[Depends(bearer_auth)],
              description="Authenticated Prometheus metrics endpoint.")
     async def metrics(request: Request) -> Response:
         authorize(request)

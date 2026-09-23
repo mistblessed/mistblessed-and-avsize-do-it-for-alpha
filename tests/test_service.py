@@ -73,6 +73,17 @@ async def test_consumer_isolation_and_authorization(client):
     assert (await process(client, "hello", key="unknown")).status_code == 401
 
 
+async def test_openapi_exposes_bearer_auth_for_protected_routes(client):
+    schema = (await client.get("/openapi.json")).json()
+
+    assert schema["components"]["securitySchemes"]["HTTPBearer"] == {
+        "type": "http",
+        "scheme": "bearer",
+    }
+    for path, method in [("/process", "post"), ("/v1/chat", "post"), ("/metrics", "get")]:
+        assert {"HTTPBearer": []} in schema["paths"][path][method]["security"]
+
+
 async def test_no_pii_and_validation_do_not_echo_input(client):
     for _ in range(3):
         assert (await process(client, "Hello world")).json() == {"result": "Hello world"}

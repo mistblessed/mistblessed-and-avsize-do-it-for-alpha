@@ -95,11 +95,24 @@ def test_layout_mask_preserves_length_and_non_alnum(text):
             assert a == b
 
 
-@given(st.text(min_size=2, max_size=30).filter(lambda t: any(c.isalnum() for c in t)))
+@given(
+    st.text(min_size=2, max_size=30).filter(
+        lambda t: any(c.isalnum() for c in t) and t not in f"⟦{Kind.PERSON}:⟧"
+    )
+)
 def test_typed_tokens_never_contain_original(text):
     result = mask(text, [Entity(Kind.PERSON, 0, len(text))], "typed_tokens")
     assert text not in result.text
     assert all(orig not in result.text for orig in result.tokens.values())
+
+
+def test_typed_tokens_retry_when_random_id_contains_original(monkeypatch):
+    generated = iter(["0" * 24, "abcdef123456789abcdef123"])
+    monkeypatch.setattr("alfa_pii.transformation.masking.secrets.token_hex", lambda _: next(generated))
+
+    result = mask("00", [Entity(Kind.CVV, 0, 2)], "typed_tokens")
+
+    assert "00" not in result.text
 
 
 def test_tokens_stable_inside_request_and_scoped_between_requests():

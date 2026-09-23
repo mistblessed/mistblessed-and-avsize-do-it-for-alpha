@@ -1,13 +1,12 @@
-"""Generate an INDEPENDENT holdout corpus with new sentence families.
+"""Generate a synthetic development corpus with alternate sentence families.
 
 This is NOT the development corpus. It uses different labels, sentence
-structures, and value formats than tools/make_corpus.py so it can serve as a
-genuinely unseen evaluation set. Offsets are computed programmatically from the
-value substring, so labels are exact and verifiable.
+structures, and value formats than tools/make_corpus.py. Offsets are computed
+programmatically from the value substring, so labels are exact and verifiable.
 
-This is a synthetic fixture generator. It is not an independent human-reviewed
-holdout; a human must still review the labels before treating the result as an
-official evaluation. See tests/AGENTS.md and docs/TEAM_PLAN.md.
+This generator and its output have already been used during implementation and
+contain repeated texts. They are not an independent, human-reviewed holdout.
+See tests/AGENTS.md and docs/TEAM_PLAN.md.
 """
 import argparse
 import json
