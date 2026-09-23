@@ -1,0 +1,112 @@
+pageType: content
+background: {type: solid, color: "$paper"}
+elements:
+  - elementId: section
+    elementType: text
+    bounds: [58, 36, 780, 25]
+    content: {style: "$small", bold: true, letterSpacing: 2, text: "02 / ПУТЬ ДАННЫХ"}
+  - elementId: title
+    elementType: text
+    bounds: [58, 73, 838, 65]
+    content: {style: "$title", text: "Модель видит только защищённый текст"}
+  - elementId: top-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [58, 146, 844, 1]
+    fill: {type: solid, color: "$rule"}
+  - elementId: label-1
+    elementType: text
+    bounds: [58, 191, 152, 34]
+    content: {fontFamily: Arial, fontSize: 22, bold: true, color: "$ink", text: "Потребитель"}
+  - elementId: label-2
+    elementType: text
+    bounds: [241, 191, 145, 34]
+    content: {fontFamily: Arial, fontSize: 22, bold: true, color: "$ink", text: "Политика"}
+  - elementId: label-3
+    elementType: text
+    bounds: [425, 191, 137, 34]
+    content: {fontFamily: Arial, fontSize: 22, bold: true, color: "$red", text: "CPU / PII"}
+  - elementId: label-4
+    elementType: text
+    bounds: [623, 191, 105, 34]
+    content: {fontFamily: Arial, fontSize: 22, bold: true, color: "$ink", text: "LLM"}
+  - elementId: label-5
+    elementType: text
+    bounds: [790, 191, 112, 34]
+    content: {fontFamily: Arial, fontSize: 22, bold: true, color: "$ink", text: "Ответ"}
+  - elementId: flow-line
+    elementType: shape
+    shapeName: rect
+    bounds: [59, 250, 810, 2]
+    fill: {type: solid, color: "$ink"}
+  - elementId: dot-1
+    elementType: shape
+    shapeName: ellipse
+    bounds: [72, 243, 16, 16]
+    fill: {type: solid, color: "$ink"}
+  - elementId: dot-2
+    elementType: shape
+    shapeName: ellipse
+    bounds: [257, 243, 16, 16]
+    fill: {type: solid, color: "$ink"}
+  - elementId: dot-3
+    elementType: shape
+    shapeName: ellipse
+    bounds: [443, 241, 20, 20]
+    fill: {type: solid, color: "$red"}
+  - elementId: dot-4
+    elementType: shape
+    shapeName: ellipse
+    bounds: [635, 243, 16, 16]
+    fill: {type: solid, color: "$ink"}
+  - elementId: dot-5
+    elementType: shape
+    shapeName: ellipse
+    bounds: [814, 243, 16, 16]
+    fill: {type: solid, color: "$ink"}
+  - elementId: step-caption-1
+    elementType: text
+    bounds: [59, 272, 155, 64]
+    content: {style: "$small", text: "запрос + права\nдоступа"}
+  - elementId: step-caption-2
+    elementType: text
+    bounds: [242, 272, 154, 64]
+    content: {style: "$small", text: "что искать\nи маскировать"}
+  - elementId: step-caption-3
+    elementType: text
+    bounds: [427, 272, 155, 64]
+    content: {style: "$small", text: "маска, затем\nпроверка ответа"}
+  - elementId: step-caption-4
+    elementType: text
+    bounds: [620, 272, 146, 64]
+    content: {style: "$small", text: "только маска\nна входе"}
+  - elementId: step-caption-5
+    elementType: text
+    bounds: [783, 272, 120, 64]
+    content: {style: "$small", text: "восстановление\nпо правам"}
+  - elementId: redis-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [450, 343, 1, 75]
+    fill: {type: solid, color: "$red"}
+  - elementId: redis-title
+    elementType: text
+    bounds: [465, 367, 385, 30]
+    content: {fontFamily: Arial, fontSize: 20, bold: true, color: "$ink", text: "Redis / AES-GCM"}
+  - elementId: redis-note
+    elementType: text
+    bounds: [465, 397, 390, 42]
+    content: {style: "$small", text: "атомарное состояние для точного восстановления"}
+  - elementId: bottom-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [58, 466, 844, 1]
+    fill: {type: solid, color: "$rule"}
+  - elementId: footer
+    elementType: text
+    bounds: [58, 482, 725, 28]
+    content: {style: "$small", text: "Внешняя зависимость — LLM; при сбое защиты или хранилища запрос блокируется."}
+  - elementId: page
+    elementType: text
+    bounds: [832, 488, 70, 20]
+    content: {style: "$small", align: [right, top], text: "03 / 07"}

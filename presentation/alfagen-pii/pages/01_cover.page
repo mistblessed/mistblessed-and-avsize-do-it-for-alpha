@@ -1,0 +1,50 @@
+pageType: cover
+background: {type: solid, color: "$paper"}
+elements:
+  - elementId: eyebrow
+    elementType: text
+    bounds: [58, 46, 600, 28]
+    content: {style: "$small", bold: true, letterSpacing: 2, text: "ИНЖЕНЕРНОЕ РЕШЕНИЕ / 2026"}
+  - elementId: top-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [58, 89, 844, 1]
+    fill: {type: solid, color: "$rule"}
+  - elementId: red-index
+    elementType: text
+    bounds: [58, 134, 110, 125]
+    content: {fontFamily: Arial, fontSize: 92, bold: true, color: "$red", text: "01"}
+  - elementId: title
+    elementType: text
+    bounds: [226, 136, 645, 170]
+    content:
+      fontFamily: Arial
+      fontSize: 56
+      bold: true
+      color: "$ink"
+      lineHeight: 1.04
+      text: |
+        AlfaGen PII
+        Protection
+  - elementId: subtitle
+    elementType: text
+    bounds: [229, 324, 610, 102]
+    content:
+      style: "$body"
+      lineHeight: 1.26
+      text: |
+        CPU-прокси защищает персональные данные
+        до обращения к языковой модели.
+  - elementId: bottom-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [58, 472, 844, 1]
+    fill: {type: solid, color: "$rule"}
+  - elementId: footer
+    elementType: text
+    bounds: [58, 486, 735, 22]
+    content: {style: "$small", text: "ДЕМО • 5 МИНУТ"}
+  - elementId: page
+    elementType: text
+    bounds: [851, 486, 50, 22]
+    content: {style: "$small", align: [right, top], text: "01 / 07"}

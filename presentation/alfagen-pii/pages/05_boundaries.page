@@ -1,0 +1,69 @@
+pageType: content
+background: {type: solid, color: "$paper"}
+elements:
+  - elementId: section
+    elementType: text
+    bounds: [58, 36, 780, 25]
+    content: {style: "$small", bold: true, letterSpacing: 2, text: "04 / БЕЗОПАСНОСТЬ"}
+  - elementId: title
+    elementType: text
+    bounds: [58, 73, 835, 65]
+    content: {style: "$title", text: "Контроль на каждом переходе"}
+  - elementId: top-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [58, 146, 844, 1]
+    fill: {type: solid, color: "$rule"}
+  - elementId: left-head
+    elementType: text
+    bounds: [58, 185, 340, 45]
+    content: {fontFamily: Arial, fontSize: 25, bold: true, color: "$red", text: "Кто и что может"}
+  - elementId: left-text
+    elementType: text
+    bounds: [58, 237, 347, 172]
+    content:
+      fontFamily: Arial
+      fontSize: 22
+      lineHeight: 1.36
+      color: "$ink"
+      text: |
+        Политика потребителя задаёт
+        категории, маску и право
+        восстановления. Состояние
+        изолировано по потребителю
+        и endpoint.
+  - elementId: mid-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [440, 183, 1, 230]
+    fill: {type: solid, color: "$rule"}
+  - elementId: right-head
+    elementType: text
+    bounds: [478, 185, 386, 45]
+    content: {fontFamily: Arial, fontSize: 25, bold: true, color: "$red", text: "Что не проходит"}
+  - elementId: right-text
+    elementType: text
+    bounds: [478, 237, 399, 172]
+    content:
+      fontFamily: Arial
+      fontSize: 22
+      lineHeight: 1.36
+      color: "$ink"
+      text: |
+        При сбое защиты или Redis —
+        503 до вызова LLM. Журналы
+        не содержат исходные ПД,
+        ключи, маскировки или сырые ID.
+  - elementId: bottom-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [58, 456, 844, 1]
+    fill: {type: solid, color: "$rule"}
+  - elementId: footer
+    elementType: text
+    bounds: [58, 476, 745, 31]
+    content: {style: "$small", text: "Граница доверия: LLM получает только обработанный текст; ответ проверяется повторно."}
+  - elementId: page
+    elementType: text
+    bounds: [832, 488, 70, 20]
+    content: {style: "$small", align: [right, top], text: "05 / 07"}

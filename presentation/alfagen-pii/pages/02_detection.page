@@ -1,0 +1,58 @@
+pageType: content
+background: {type: solid, color: "$paper"}
+elements:
+  - elementId: section
+    elementType: text
+    bounds: [58, 36, 780, 25]
+    content: {style: "$small", bold: true, letterSpacing: 2, text: "01 / ОБНАРУЖЕНИЕ"}
+  - elementId: title
+    elementType: text
+    bounds: [58, 73, 835, 72]
+    content: {style: "$title", text: "17 типов ПД — правила + Natasha"}
+  - elementId: top-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [58, 146, 844, 1]
+    fill: {type: solid, color: "$rule"}
+  - elementId: big-17
+    elementType: text
+    bounds: [58, 172, 232, 140]
+    content: {fontFamily: Arial, fontSize: 116, bold: true, color: "$red", text: "17"}
+  - elementId: count-label
+    elementType: text
+    bounds: [62, 309, 224, 57]
+    content: {fontFamily: Arial, fontSize: 20, bold: true, color: "$ink", text: "категорий\nв одном детекторе"}
+  - elementId: vertical-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [327, 172, 1, 207]
+    fill: {type: solid, color: "$rule"}
+  - elementId: mechanism
+    elementType: text
+    bounds: [365, 179, 520, 177]
+    content:
+      fontFamily: Arial
+      fontSize: 23
+      color: "$ink"
+      lineHeight: 1.32
+      text: |
+        Контекстные правила находят форматы и поля.
+        Локальная Natasha дополняет свободный текст.
+        Проверки контекста снижают ложные срабатывания.
+  - elementId: example-label
+    elementType: text
+    bounds: [365, 382, 510, 24]
+    content: {style: "$small", bold: true, text: "СИНТЕТИЧЕСКИЙ ПРИМЕР"}
+  - elementId: example-rule
+    elementType: shape
+    shapeName: rect
+    bounds: [365, 413, 518, 1]
+    fill: {type: solid, color: "$red"}
+  - elementId: example
+    elementType: text
+    bounds: [365, 425, 520, 40]
+    content: {style: "$code", text: "Email: demo@example.org → EMAIL"}
+  - elementId: page
+    elementType: text
+    bounds: [832, 488, 70, 20]
+    content: {style: "$small", align: [right, top], text: "02 / 07"}

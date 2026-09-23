@@ -1,0 +1,23 @@
+version: v2
+title: AlfaGen PII Protection
+size: [960, 540]
+theme:
+  colors:
+    paper: "#F7F3EB"
+    ink: "#202326"
+    muted: "#676A69"
+    rule: "#C9C7C0"
+    red: "#C83631"
+  textStyles:
+    title: {fontFamily: Arial, fontSize: 34, bold: true, color: "$ink"}
+    body: {fontFamily: Arial, fontSize: 22, color: "$ink"}
+    small: {fontFamily: Arial, fontSize: 14, color: "$muted"}
+    code: {fontFamily: Consolas, fontSize: 20, color: "$ink"}
+pages:
+  - pages/01_cover.page
+  - pages/02_detection.page
+  - pages/03_path.page
+  - pages/04_roundtrip.page
+  - pages/05_boundaries.page
+  - pages/06_evidence.page
+  - pages/07_demo.page
